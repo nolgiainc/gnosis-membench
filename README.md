@@ -101,7 +101,16 @@ Key environment variables (see `membench/src/membench/config.py`):
 `GNOSIS_BASE_URL`, `GNOSIS_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
 `MEMBENCH_ANSWER_MODEL`, `MEMBENCH_JUDGE_MODEL`, `MEMBENCH_MAX_ITEMS`
 (retrieval depth, default 20), `MEMBENCH_TENANT_ID` (must match gnosis's
-`GNOSIS_TENANT_ID`, default `bromigos`).
+`GNOSIS_TENANT_ID`, default `bromigos`), `MEMBENCH_INCLUDE_GRAPH`.
+
+> **Raw-ollama caveat (found live):** gnosis's graph-QA planner
+> (`graph_query_qa.py`) passes `GNOSIS_LLM` verbatim to a plain OpenAI
+> client, so LiteLLM-style names like `openai/llama3.2:latest` 404 against
+> bare ollama and `/v1/memory/context` returns 500 whenever the graph
+> section is requested. Everything else (extraction, embeddings, search)
+> goes through the LiteLLM adapter and works. Set
+> `MEMBENCH_INCLUDE_GRAPH=false` when gnosis points at a bare
+> OpenAI-compatible endpoint; behind a real LiteLLM proxy, leave it on.
 
 ## Cost warning
 

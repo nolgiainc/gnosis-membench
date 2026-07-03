@@ -76,7 +76,9 @@ def retrieve(
         user_id=user_id_for(conv),
     )
     if condition == "context":
-        sections = gnosis.context(scope, question.question, max_items=cfg.max_items)
+        sections = gnosis.context(
+            scope, question.question, max_items=cfg.max_items, include_graph=cfg.include_graph
+        )
         return format_context_sections(sections)
     if condition == "search":
         records = gnosis.search(scope, question.question, limit=cfg.max_items)

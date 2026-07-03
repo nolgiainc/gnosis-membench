@@ -40,6 +40,15 @@ class Config:
     # retrieval depth for both conditions
     max_items: int = field(default_factory=lambda: int(_env("MEMBENCH_MAX_ITEMS", "20")))
 
+    # include_graph for /v1/memory/context. gnosis's graph-QA planner passes
+    # GNOSIS_LLM verbatim to a raw OpenAI client, so LiteLLM-style model names
+    # ("openai/...") 500 the endpoint unless gnosis actually sits behind a
+    # LiteLLM proxy. Set MEMBENCH_INCLUDE_GRAPH=false when gnosis points at a
+    # bare OpenAI-compatible endpoint such as ollama /v1.
+    include_graph: bool = field(
+        default_factory=lambda: _env("MEMBENCH_INCLUDE_GRAPH", "true").lower() == "true"
+    )
+
     request_timeout: float = field(default_factory=lambda: float(_env("MEMBENCH_TIMEOUT", "300")))
 
     data_dir: Path = field(

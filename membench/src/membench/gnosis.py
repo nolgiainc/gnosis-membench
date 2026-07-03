@@ -81,7 +81,12 @@ class GnosisClient:
         return self._post("/v1/memories/search", payload).get("results", [])
 
     def context(
-        self, scope: dict[str, str], query: str, *, max_items: int = 8
+        self,
+        scope: dict[str, str],
+        query: str,
+        *,
+        max_items: int = 8,
+        include_graph: bool = True,
     ) -> list[dict[str, Any]]:
         payload = {
             "scope": scope,
@@ -89,7 +94,7 @@ class GnosisClient:
             "include_short_term": True,
             "include_long_term": True,
             "include_reasoning": False,
-            "include_graph": True,
+            "include_graph": include_graph,
             "max_items": max_items,
         }
         return self._post("/v1/memory/context", payload).get("sections", [])
