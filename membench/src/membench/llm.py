@@ -18,11 +18,26 @@ class ChatClient:
         client: httpx.Client | None = None,
     ) -> None:
         self._max_retries = max_retries
+        # Params (per model) that the endpoint has rejected as unsupported.
+        # Reasoning-model families (e.g. gpt-5.x) hard-reject `temperature`;
+        # we drop the offending param and remember, so every subsequent call
+        # skips it instead of burning a 400 + retry each time.
+        self._unsupported_params: dict[str, set[str]] = {}
         self._client = client or httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key or 'none'}"},
             timeout=timeout,
         )
+
+    _DROPPABLE_PARAMS = ("temperature", "max_tokens")
+
+    def _unsupported_param_in(self, body: str, payload: dict) -> str | None:
+        if "unsupported parameter" not in body.lower():
+            return None
+        for param in self._DROPPABLE_PARAMS:
+            if param in payload and f"'{param}'" in body:
+                return param
+        return None
 
     def complete(
         self,
@@ -35,10 +50,18 @@ class ChatClient:
         payload: dict = {"model": model, "messages": messages, "temperature": temperature}
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        for param in self._unsupported_params.get(model, ()):
+            payload.pop(param, None)
         last_error: Exception | None = None
         for attempt in range(self._max_retries):
             try:
                 response = self._client.post("/chat/completions", json=payload)
+                if response.status_code == 400:
+                    param = self._unsupported_param_in(response.text, payload)
+                    if param is not None:
+                        self._unsupported_params.setdefault(model, set()).add(param)
+                        payload.pop(param)
+                        continue  # immediate retry without the rejected param
                 if response.status_code in (429, 500, 502, 503, 504):
                     raise httpx.HTTPStatusError(
                         f"retryable status {response.status_code}: {response.text[:200]}",
