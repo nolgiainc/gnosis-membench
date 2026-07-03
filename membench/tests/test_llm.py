@@ -53,6 +53,41 @@ def test_complete_drops_rejected_temperature_and_remembers():
     assert "temperature" not in transport.requests[2]
 
 
+class RejectMaxTokensAs500Transport(httpx.BaseTransport):
+    """Mimics a proxy wrapping a responses-API max_output_tokens rejection in a 500."""
+
+    def __init__(self):
+        self.requests: list[dict] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode())
+        self.requests.append(body)
+        if "max_tokens" in body:
+            return httpx.Response(
+                500,
+                json={
+                    "error": {
+                        "message": "litellm.APIConnectionError: Github_copilotException"
+                        " - gpt-5.5 unable to complete request: max_output_tokens"
+                    }
+                },
+            )
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+
+def test_complete_drops_max_tokens_rejected_via_proxy_500():
+    transport = RejectMaxTokensAs500Transport()
+    client = _client(transport)
+    result = client.complete("gpt-5.5", [{"role": "user", "content": "judge this"}], max_tokens=200)
+    assert result == "ok"
+    assert "max_tokens" in transport.requests[0]
+    assert "max_tokens" not in transport.requests[1]
+    # remembered for the rest of the run
+    client.complete("gpt-5.5", [{"role": "user", "content": "next"}], max_tokens=200)
+    assert len(transport.requests) == 3
+    assert "max_tokens" not in transport.requests[2]
+
+
 def test_complete_keeps_temperature_for_models_that_accept_it():
     class OkTransport(httpx.BaseTransport):
         def __init__(self):

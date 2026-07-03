@@ -29,13 +29,22 @@ class ChatClient:
             timeout=timeout,
         )
 
-    _DROPPABLE_PARAMS = ("temperature", "max_tokens")
+    # Param -> markers identifying it in an endpoint rejection body. Note:
+    # `max_tokens` can be rejected under its responses-API name
+    # (`max_output_tokens`) when a proxy translates chat -> responses, and
+    # such rejections may surface as a 4xx or a proxy-wrapped 5xx.
+    _DROPPABLE_PARAMS: dict[str, tuple[str, ...]] = {
+        "temperature": ("'temperature'",),
+        "max_tokens": ("'max_tokens'", "max_output_tokens"),
+    }
+    _REJECTION_MARKERS = ("unsupported parameter", "unable to complete request")
 
-    def _unsupported_param_in(self, body: str, payload: dict) -> str | None:
-        if "unsupported parameter" not in body.lower():
+    def _rejected_param_in(self, body: str, payload: dict) -> str | None:
+        lowered = body.lower()
+        if not any(marker in lowered for marker in self._REJECTION_MARKERS):
             return None
-        for param in self._DROPPABLE_PARAMS:
-            if param in payload and f"'{param}'" in body:
+        for param, markers in self._DROPPABLE_PARAMS.items():
+            if param in payload and any(marker in lowered for marker in markers):
                 return param
         return None
 
@@ -56,8 +65,8 @@ class ChatClient:
         for attempt in range(self._max_retries):
             try:
                 response = self._client.post("/chat/completions", json=payload)
-                if response.status_code == 400:
-                    param = self._unsupported_param_in(response.text, payload)
+                if response.status_code >= 400:
+                    param = self._rejected_param_in(response.text, payload)
                     if param is not None:
                         self._unsupported_params.setdefault(model, set()).add(param)
                         payload.pop(param)
