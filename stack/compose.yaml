@@ -1,0 +1,74 @@
+# Full local stack for benchmarking gnosis:
+#   - neo4j 5.28 (graph store gnosis expects)
+#   - gnosis, built from the sibling gnosis repo's Dockerfile
+#
+# gnosis needs an OpenAI-compatible LLM + embedding endpoint. Options:
+#   - in-cluster/prod: LiteLLM — point OPENAI_BASE_URL at it and use the
+#     LiteLLM model names your proxy exposes.
+#   - local: ollama's OpenAI-compatible API — OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+#     with e.g. GNOSIS_LLM=openai/llama3.2:latest, GNOSIS_EMBEDDING=openai/nomic-embed-text,
+#     GNOSIS_EMBEDDING_DIMENSIONS=768 (pull both models with `ollama pull` first).
+#     The `openai/` prefix tells gnosis's LiteLLM adapter to treat the endpoint
+#     as OpenAI-compatible passthrough.
+#
+# Copy .env.example to .env in this directory and adjust, then:
+#   docker compose up --build -d
+#
+# The gnosis build context defaults to a sibling checkout of the gnosis repo
+# (../../gnosis); override with GNOSIS_CONTEXT.
+
+services:
+  neo4j:
+    # 5.26 is the final 5.x LTS line on Docker Hub (there is no 5.28 tag;
+    # Neo4j switched to calendar versioning after 5.26).
+    image: neo4j:5.26
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-membench-neo4j}
+    ports:
+      - "7474:7474" # browser
+      - "7687:7687" # bolt
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-membench-neo4j} 'RETURN 1' || exit 1",
+        ]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  gnosis:
+    build:
+      context: ${GNOSIS_CONTEXT:-../../gnosis}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # so ollama on the host is reachable on linux too
+    environment:
+      # --- auth (gnosis validates all of these as non-empty at startup) ---
+      GNOSIS_TOKEN: ${GNOSIS_TOKEN:-membench-token}
+      GNOSIS_READ_OPERATOR_TOKEN: ${GNOSIS_READ_OPERATOR_TOKEN:-membench-read}
+      GNOSIS_EXPORT_OPERATOR_TOKEN: ${GNOSIS_EXPORT_OPERATOR_TOKEN:-membench-export}
+      GNOSIS_WRITE_OPERATOR_TOKEN: ${GNOSIS_WRITE_OPERATOR_TOKEN:-membench-write}
+      GNOSIS_ADMIN_OPERATOR_TOKEN: ${GNOSIS_ADMIN_OPERATOR_TOKEN:-membench-admin}
+      GNOSIS_TENANT_ID: ${GNOSIS_TENANT_ID:-bromigos}
+      # --- graph store ---
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-membench-neo4j}
+      # --- OpenAI-compatible LLM/embedding endpoint (LiteLLM, ollama /v1, ...) ---
+      LITELLM_BASE_URL: ${OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
+      LITELLM_API_KEY: ${OPENAI_API_KEY:-ollama}
+      GNOSIS_LLM: ${GNOSIS_LLM:-openai/llama3.2:latest}
+      GNOSIS_EMBEDDING: ${GNOSIS_EMBEDDING:-openai/nomic-embed-text}
+      GNOSIS_EMBEDDING_DIMENSIONS: ${GNOSIS_EMBEDDING_DIMENSIONS:-768}
+      # --- benchmark-friendly behavior ---
+      GNOSIS_WRITE_MODE: sync
+
+volumes:
+  neo4j-data:

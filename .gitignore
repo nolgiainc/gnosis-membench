@@ -1,0 +1,14 @@
+# benchmark data (downloaded; LongMemEval_S is ~277 MB)
+data/
+# run outputs
+results/
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+# local env
+stack/.env
+.env
