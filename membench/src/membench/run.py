@@ -119,14 +119,34 @@ def _run(args: argparse.Namespace, cfg) -> int:
             if not records:
                 print(f"error: no answers for condition {condition!r}", file=sys.stderr)
                 return 1
-            print(f"grading condition: {condition} ({len(records)} answers)")
+            # Resumable: previously graded records (streamed to the jsonl as
+            # they were scored) are kept; only the remainder hits the judge.
+            graded_path = out_dir / f"graded_{condition}.jsonl"
+            already = {r["question_id"]: r for r in _read_jsonl(graded_path)}
+            pending = [r for r in records if r["question_id"] not in already]
+            print(
+                f"grading condition: {condition} "
+                f"({len(records)} answers, {len(already)} already graded)"
+            )
+            grade_fn = (
+                grade.grade_longmemeval
+                if args.benchmark == datasets.LONGMEMEVAL_S
+                else grade.grade_locomo
+            )
+            with graded_path.open("a") as graded_out:
+
+                def stream(record: dict, out=graded_out) -> None:
+                    out.write(json.dumps(record) + "\n")
+                    out.flush()
+
+                newly = grade_fn(llm.complete, cfg.judge_model, pending, on_record=stream)
+            by_id = {**already, **{r["question_id"]: r for r in newly}}
+            graded = [by_id[r["question_id"]] for r in records]
             if args.benchmark == datasets.LONGMEMEVAL_S:
-                graded = grade.grade_longmemeval(llm.complete, cfg.judge_model, records)
                 aggregates[condition] = grade.aggregate_longmemeval(graded)
             else:
-                graded = grade.grade_locomo(llm.complete, cfg.judge_model, records)
                 aggregates[condition] = grade.aggregate_locomo(graded)
-            _write_jsonl(out_dir / f"graded_{condition}.jsonl", graded)
+            _write_jsonl(graded_path, graded)
 
         run_info = {
             "benchmark": args.benchmark,
@@ -136,6 +156,7 @@ def _run(args: argparse.Namespace, cfg) -> int:
             "answer_model": cfg.answer_model,
             "judge_model": cfg.judge_model,
             "max_items": cfg.max_items,
+            "include_graph": cfg.include_graph,
             "inline_dates": args.inline_dates,
             "gnosis_base_url": cfg.gnosis_base_url,
             "timestamp": datetime.now(UTC).isoformat(),

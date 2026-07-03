@@ -96,11 +96,14 @@ def grade_longmemeval(
     records: list[dict[str, Any]],
     *,
     log: Callable[[str], None] = print,
+    on_record: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
     graded = []
     for record in records:
         result = grade_longmemeval_record(complete, judge_model, record)
         graded.append(result)
+        if on_record is not None:
+            on_record(result)
         log(f"  judged {record['question_id']}: {'correct' if result['correct'] else 'wrong'}")
     return graded
 
@@ -258,6 +261,7 @@ def grade_locomo(
     records: list[dict[str, Any]],
     *,
     log: Callable[[str], None] = print,
+    on_record: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
     graded = []
     for record in records:
@@ -280,14 +284,15 @@ def grade_locomo(
         else:
             judge_response = None
             judged = locomo_adversarial_correct(record["hypothesis"])
-        graded.append(
-            {
-                **record,
-                **scores,
-                "judge_response": judge_response,
-                "correct": judged,
-            }
-        )
+        result = {
+            **record,
+            **scores,
+            "judge_response": judge_response,
+            "correct": judged,
+        }
+        graded.append(result)
+        if on_record is not None:
+            on_record(result)
         log(f"  scored {record['question_id']}: f1={scores['f1']:.3f} judge={judged}")
     return graded
 
