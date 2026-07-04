@@ -38,9 +38,17 @@ from typing import Any
 
 from .config import Config
 from .datasets import Conversation, Session
-from .gnosis import GnosisClient
+from .gnosis import GnosisClient, GnosisError
 
 TURNS_PER_ADD = 2
+
+# Extraction-mode adds fail sporadically (the extractor LLM occasionally emits
+# invalid JSON -> gnosis 500s that one add). A dropped add silently loses the
+# turn-pair AND poisons resume (conversation-level state would re-ingest the
+# conversation's already-written sessions as duplicates), so retry before
+# giving up. Deterministic failures still raise after the last attempt.
+ADD_ATTEMPTS = 3
+ADD_RETRY_BACKOFF_S = 2.0
 
 
 def user_id_for(conv: Conversation) -> str:
@@ -85,9 +93,28 @@ def _ingest_session(
         }
         if session.date:
             metadata["session_date"] = session.date
-        gnosis.add_memory(scope, messages, metadata=metadata)
+        _add_with_retry(gnosis, scope, messages, metadata, log=log)
     log(f"  {conv.conv_id} / {session.session_id}: {len(turns)} turns")
     return len(turns)
+
+
+def _add_with_retry(
+    gnosis: GnosisClient,
+    scope: dict[str, str],
+    messages: list[dict[str, str]],
+    metadata: dict[str, Any],
+    *,
+    log: Callable[[str], None],
+) -> None:
+    for attempt in range(1, ADD_ATTEMPTS + 1):
+        try:
+            gnosis.add_memory(scope, messages, metadata=metadata)
+            return
+        except GnosisError as exc:
+            if attempt == ADD_ATTEMPTS:
+                raise
+            log(f"  add failed (attempt {attempt}/{ADD_ATTEMPTS}), retrying: {exc}")
+            time.sleep(ADD_RETRY_BACKOFF_S * attempt)
 
 
 def ingest_conversation(
