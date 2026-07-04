@@ -75,6 +75,12 @@ services:
       GNOSIS_FACT_EXTRACTION_ENABLED: ${GNOSIS_FACT_EXTRACTION_ENABLED:-false}
       # hybrid run, 2026-07-03: BM25+dense RRF fusion (gnosis PR #15)
       GNOSIS_HYBRID_RETRIEVAL_ENABLED: ${GNOSIS_HYBRID_RETRIEVAL_ENABLED:-false}
+      # LongMemEval campaign, 2026-07-04: scope-narrowed dense retrieval
+      # (gnosis PR #46). Required for validity of multi-user single-store
+      # benchmarking - LongMemEval instances share haystack sessions, so the
+      # SDK's global vector top-k crowds the requesting user out.
+      GNOSIS_SCOPED_DENSE_RETRIEVAL_ENABLED: ${GNOSIS_SCOPED_DENSE_RETRIEVAL_ENABLED:-false}
+      GNOSIS_DENSE_SCOPE_POOL: ${GNOSIS_DENSE_SCOPE_POOL:-4000}
       GNOSIS_GRAPHQA_FUSION_ENABLED: ${GNOSIS_GRAPHQA_FUSION_ENABLED:-false}
       GNOSIS_ABSTENTION_PROMPT_ENABLED: ${GNOSIS_ABSTENTION_PROMPT_ENABLED:-false}
       GNOSIS_FACT_VERBATIM_EXPANSION_ENABLED: ${GNOSIS_FACT_VERBATIM_EXPANSION_ENABLED:-false}
