@@ -13,6 +13,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from . import aging as aging_mod
 from . import answer as answer_mod
 from . import datasets, grade, ingest, report
 from .config import load_config
@@ -57,6 +58,33 @@ def main(argv: list[str] | None = None) -> int:
         help="parallel session ingests (ordering is preserved within a session)",
     )
 
+    aging = sub.add_parser(
+        "aging",
+        help="memory-aging protocol: synthetic supersession maintenance (see aging.py)",
+    )
+    aging.add_argument("--seed", type=int, default=7)
+    aging.add_argument("--users", type=int, default=8, help="number of synthetic users")
+    aging.add_argument(
+        "--update-versions", type=int, default=3, help="versions per update chain (>=3)"
+    )
+    aging.add_argument(
+        "--config-label",
+        default="default",
+        help="label for this run's gnosis config (e.g. supersession_on / supersession_off)",
+    )
+    aging.add_argument(
+        "--stages",
+        default=",".join(aging_mod.AGING_STAGES),
+        help="comma-separated stages to run (default: ingest,probe)",
+    )
+    aging.add_argument("--out", type=Path, default=None, help="output directory for this run")
+    aging.add_argument(
+        "--compare-with",
+        type=Path,
+        default=None,
+        help="a prior aging_results.json to render side by side (ON vs OFF)",
+    )
+
     args = parser.parse_args(argv)
     cfg = load_config()
 
@@ -65,7 +93,40 @@ def main(argv: list[str] | None = None) -> int:
         print(f"downloaded {args.benchmark} -> {path}")
         return 0
 
+    if args.command == "aging":
+        return _run_aging(args, cfg)
+
     return _run(args, cfg)
+
+
+def _run_aging(args: argparse.Namespace, cfg) -> int:
+    stages = tuple(s.strip() for s in args.stages.split(",") if s.strip())
+    for stage in stages:
+        if stage not in aging_mod.AGING_STAGES:
+            print(f"error: unknown aging stage {stage!r}", file=sys.stderr)
+            return 2
+    out_dir = args.out or (cfg.results_dir / "aging" / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"writing aging results to {out_dir}")
+
+    gnosis = GnosisClient(cfg.gnosis_base_url, cfg.gnosis_token, timeout=cfg.request_timeout)
+    if ("ingest" in stages or "probe" in stages) and not gnosis.ready():
+        print(f"error: gnosis not ready at {cfg.gnosis_base_url}", file=sys.stderr)
+        gnosis.close()
+        return 1
+    aging_args = aging_mod.AgingArgs(
+        seed=args.seed,
+        n_users=args.users,
+        update_versions=args.update_versions,
+        config_label=args.config_label,
+        stages=stages,
+        out_dir=out_dir,
+        compare_with=args.compare_with,
+    )
+    aging_mod.run_aging(gnosis, cfg, aging_args, out_dir)
+    gnosis.close()
+    print(f"results: {out_dir / 'aging_results.json'}")
+    return 0
 
 
 def _run(args: argparse.Namespace, cfg) -> int:

@@ -197,6 +197,61 @@ categories are unreliable.
 - The gap between the `context` and `search` conditions tells you whether
   gnosis's context assembly is adding value over raw ranked recall.
 
+## Aging protocol
+
+The LOCOMO / LongMemEval harness ingests a corpus once and asks immediately, so
+it never measures **long-horizon maintenance**: whether gnosis correctly
+*supersedes* facts that get updated or contradicted as time passes. The aging
+protocol (`membench aging`, `src/membench/aging.py`) fills that gap. Research
+basis: `docs/gaps-abstention-maintenance.md` — deterministic read-time
+"newest-wins" beats write-time bi-temporal invalidation (78–94.8% vs 7% on
+MemoryAgentBench FactConsolidation, arXiv:2606.01435), and indiscriminate
+add-all accumulation degrades accuracy 67.5→55.5 as memory grows
+(arXiv:2505.16067).
+
+**What it measures.** A seeded synthetic dataset gives each user facts that
+either get UPDATED (3+ version chains, e.g. favorite color blue→green→purple),
+CONTRADICTED (two flat assertions at different dates, no "I changed" cue, e.g.
+works at Acme-Corp then Beta-Corp), stay STABLE (controls that never change), or
+act as DISTRACTORS (independent same-word facts — the user's *partner's*
+favorite color — that must NOT be dropped when the user's own color chain is
+superseded). Every fact version carries a synthetic `session_date` (weeks
+apart) passed via add metadata exactly as `ingest.py` dates units. The timeline
+is ingested in strict time order; then each slot is probed ("what is X's
+current favorite color?") and scored **deterministically from the returned
+memories, no LLM judge**:
+
+| metric | want | how it's computed |
+|---|---|---|
+| supersession accuracy | high | probe surfaces the newest value, ranked above any stale value |
+| stale-answer rate | ~0 | an outdated value is returned / ranked above the current one |
+| retention (stable controls) | full | stable facts still retrievable |
+| false-supersession rate | ~0 | independent distractor facts wrongly dropped |
+| store-growth ratio | tracks fact count | fact versions ingested / unique current facts |
+
+**Good looks like:** high supersession accuracy, ~zero stale-answer rate, full
+retention, ~zero false-supersession, store-growth tracking the append-only fact
+count.
+
+**Running it live (pending).** The live run happens *after gnosis ships
+read-time supersession*. Supersession-ON vs OFF is not a harness flag — point
+the harness at a gnosis started with / without `GNOSIS_READ_SUPERSESSION_ENABLED`
+and label each run:
+
+```bash
+cd membench
+# with gnosis running supersession OFF:
+uv run membench aging --config-label supersession_off --out results/aging/off
+# restart gnosis with GNOSIS_READ_SUPERSESSION_ENABLED=true, then:
+uv run membench aging --config-label supersession_on --out results/aging/on \
+  --compare-with results/aging/off/aging_results.json
+```
+
+The second run renders both configs side by side in `aging_report.md`. Tune the
+dataset size with `--users N` and chain length with `--update-versions K`
+(deterministic per `--seed`). All phases are resumable (JSONL + state files) like
+the main harness.
+
 ## Repo layout
 
 ```
@@ -210,7 +265,8 @@ membench/             uv project
     grade.py          official scoring (verbatim LongMemEval judge prompts,
                       LOCOMO F1/BLEU-1/judge)
     report.py         paper-style markdown tables
-    run.py            CLI: membench download | membench run
+    aging.py          memory-aging protocol: synthetic supersession maintenance
+    run.py            CLI: membench download | membench run | membench aging
   tests/              fixture-based unit tests (loaders, graders, request shapes)
 ```
 
