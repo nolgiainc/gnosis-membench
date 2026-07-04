@@ -6,7 +6,8 @@ frozen comparison config unless a deviation is noted. Raw artifacts
 gitignored `results/` tree on the machine that ran them; this file is the
 durable summary.
 
-**Frozen config**: LOCOMO subset 3 (conv-26, conv-30, conv-41), 1,451 turns
+**Frozen config (LOCOMO — regression gate)**: LOCOMO subset 3 (conv-26,
+conv-30, conv-41), 1,451 turns
 ingested, 497 questions; retrieval depth `max_items`/`limit` = 20; answering
 and judging on GPT-5.5 via homelab LiteLLM at judge temperature = provider
 default (gpt-5.5 hard-rejects the `temperature` param — deviation from the
@@ -14,6 +15,18 @@ official protocol, constant across all runs); LOCOMO adversarial rows scored
 by the official substring rule; headline J excludes adversarial (matches the
 mem0 paper's convention). gnosis embeddings: `local-qwen3-embedding-0.6b`
 (1024-dim). Graph QA off (`MEMBENCH_INCLUDE_GRAPH=false`).
+
+**Embedder note (2026-07-04)**: the LongMemEval_S campaign (new primary
+target) switches gnosis to cloud embeddings — `gemini-embedding-001`
+(3072-dim, via the homelab LiteLLM; homelab PR #14 exposed the route).
+Chosen over `text-embedding-3-small`/`-large` because it outranks both on
+MTEB retrieval and the goal is highest scores, not published-system
+comparability; verified live through gnosis's config path (3072-dim Fact
+vectors in Neo4j) before any measured run. The LOCOMO gate above KEEPS
+qwen3 embeddings — its entire 19-run history was measured there, and
+changing the embedder would invalidate the comparison. Answering and
+judging stay on the chatgpt-sub gpt-5.5 route; only `/v1/embeddings`
+traffic hits the paid keys (cents at these volumes).
 
 ## Trajectory (headline: J excl. adversarial, LOCOMO subset 3)
 
@@ -101,12 +114,24 @@ post-Run-15 delta; (2) the largest remaining category gap (multi-hop
 does not flip answers; (3) temporal's 1.1 gap to peak is one
 question. Run 18's 74.8 excl-adv sits above the published
 full-context ceiling (72.9, different judge — directional only).
-Recommended next benchmark move, NOT started: adopt LongMemEval_S
-(500 questions, 5 ability axes including abstention and knowledge
-updates, ~115k-token haystacks) as the primary optimization target,
-keep LOCOMO subset 3 as a frozen regression gate at the Run 18
-config, and re-baseline the noise floor there before believing any
-new lever.
+
+**Status (2026-07-04): LOCOMO subset 3 is FROZEN as the regression
+gate at the Run 18 config** (extraction + entity graph at write;
+adaptive routing + route-aware hardened CoN v3 with the likelihood
+carve-out at read; embeddings `local-qwen3-embedding-0.6b` /
+1024-dim; judge gpt-5.5; `max_items` 20; context condition).
+Reference scores for the gate: excl-adv 74.8 / overall 76.7, with a
+±2.3 J noise band on excl-adv between identical configs. Any future
+gnosis change should re-run this gate and is a regression only if it
+lands below the noise band, judged per-category. The gate keeps the
+qwen3 embedder its whole history was measured with, so its recorded
+scores stay comparable; re-running it requires a re-ingest at that
+embedder (the store is not kept warm). The primary optimization
+target is now LongMemEval_S (500 questions, 5 ability axes including
+abstention and knowledge updates, ~115k-token haystacks), whose
+frozen config switches to cloud embeddings (see the LongMemEval_S
+section); its noise floor must be re-baselined there before
+believing any new lever.
 
 ### Full per-category history — context condition (`/v1/memory/context`)
 

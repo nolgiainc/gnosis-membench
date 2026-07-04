@@ -55,7 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         "--ingest-concurrency",
         type=int,
         default=1,
-        help="parallel session ingests (ordering is preserved within a session)",
+        help="parallel session ingests, pooled across conversations "
+        "(ordering is preserved within a session)",
     )
     run.add_argument(
         "--concurrency",
@@ -63,6 +64,14 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="parallel answer/grade workers (overrides MEMBENCH_CONCURRENCY; keep <=8 "
         "against a rate-limited endpoint). Use 1 for serial debugging.",
+    )
+    run.add_argument(
+        "--grade-concurrency",
+        type=int,
+        default=None,
+        help="parallel grade workers (defaults to --concurrency). The grade stage "
+        "never touches gnosis or embeddings — one short judge call per question — "
+        "so it can safely run higher than the answer stage, e.g. 24-32.",
     )
 
     aging = sub.add_parser(
@@ -166,6 +175,7 @@ def _run(args: argparse.Namespace, cfg) -> int:
     print(f"writing results to {out_dir}")
 
     workers = args.concurrency if args.concurrency is not None else cfg.concurrency
+    grade_workers = args.grade_concurrency if args.grade_concurrency is not None else workers
 
     gnosis = GnosisClient(cfg.gnosis_base_url, cfg.gnosis_token, timeout=cfg.request_timeout)
     llm = ChatClient(cfg.openai_base_url, cfg.openai_api_key, timeout=cfg.request_timeout)
@@ -227,7 +237,7 @@ def _run(args: argparse.Namespace, cfg) -> int:
                     out.flush()
 
                 newly = grade_fn(
-                    llm.complete, cfg.judge_model, pending, workers=workers, on_record=stream
+                    llm.complete, cfg.judge_model, pending, workers=grade_workers, on_record=stream
                 )
             by_id = {**already, **{r["question_id"]: r for r in newly}}
             graded = [by_id[r["question_id"]] for r in records]

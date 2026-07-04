@@ -18,7 +18,10 @@ Protocol:
 
 Sessions are independent memory streams (ordering only matters within a
 session), so ``concurrency`` > 1 ingests sessions in parallel while keeping
-each session's adds strictly ordered.
+each session's adds strictly ordered. The pool spans ALL conversations, not
+just the current one — with many small conversations (LongMemEval: one
+conversation per question) a per-conversation pool would drain to a straggler
+tail at every conversation boundary.
 
 Ingest is resumable: completed conversation ids are recorded in a state file.
 """
@@ -26,6 +29,7 @@ Ingest is resumable: completed conversation ids are recorded in a state file.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -116,21 +120,57 @@ def ingest(
     concurrency: int = 1,
     log: Callable[[str], None] = print,
 ) -> dict[str, Any]:
+    """Ingest all conversations, pooling sessions ACROSS conversations.
+
+    A conversation is recorded as done (resume point) only once every one of
+    its sessions has been written.
+    """
     state = _load_state(state_path)
     done: set[str] = set(state.get("done", []))
-    total_turns = 0
     started = time.time()
+
+    pending: list[Conversation] = []
     for conv in conversations:
         if conv.conv_id in done:
             log(f"skipping already-ingested conversation {conv.conv_id}")
-            continue
-        log(f"ingesting conversation {conv.conv_id} ({len(conv.sessions)} sessions)")
-        total_turns += ingest_conversation(
-            gnosis, cfg, conv, inline_dates=inline_dates, concurrency=concurrency, log=log
-        )
-        done.add(conv.conv_id)
+        else:
+            pending.append(conv)
+
+    lock = threading.Lock()
+    remaining = {conv.conv_id: len(conv.sessions) for conv in pending}
+
+    def mark_done(conv_id: str) -> None:
+        done.add(conv_id)
         state["done"] = sorted(done)
         _save_state(state_path, state)
+
+    def session_finished(conv_id: str) -> None:
+        with lock:
+            remaining[conv_id] -= 1
+            if remaining[conv_id] <= 0:
+                mark_done(conv_id)
+
+    tasks: list[tuple[Conversation, Session]] = []
+    for conv in pending:
+        log(f"ingesting conversation {conv.conv_id} ({len(conv.sessions)} sessions)")
+        if not conv.sessions:
+            with lock:
+                mark_done(conv.conv_id)
+            continue
+        tasks.extend((conv, session) for session in conv.sessions)
+
+    def one(task: tuple[Conversation, Session]) -> int:
+        conv, session = task
+        turns = _ingest_session(gnosis, cfg, conv, session, inline_dates=inline_dates, log=log)
+        session_finished(conv.conv_id)
+        return turns
+
+    if concurrency <= 1:
+        total_turns = sum(one(task) for task in tasks)
+    else:
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            total_turns = sum(pool.map(one, tasks))
+
     return {
         "conversations": len(conversations),
         "turns_written": total_turns,
