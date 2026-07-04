@@ -88,6 +88,45 @@ def test_ingest_is_resumable(gnosis_client, gnosis_transport, cfg, lme_conversat
     assert set(json.loads(state.read_text())["done"]) == {"mini_1", "mini_2_abs"}
 
 
+def test_ingest_retries_transient_add_failures(cfg, lme_conversations, monkeypatch):
+    """A sporadic 500 on one add is retried instead of losing the turn-pair."""
+    from membench.gnosis import GnosisError
+
+    monkeypatch.setattr(ingest, "ADD_RETRY_BACKOFF_S", 0.0)
+    conv = lme_conversations[0]
+
+    class FlakyGnosis:
+        def __init__(self):
+            self.calls = 0
+
+        def add_memory(self, scope, messages, *, metadata=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise GnosisError("POST /v1/memories -> 500: extractor emitted invalid JSON")
+            return []
+
+    flaky = FlakyGnosis()
+    written = ingest.ingest_conversation(flaky, cfg, conv, log=lambda _: None)  # type: ignore[arg-type]
+    assert written == 4
+    assert flaky.calls == 3  # 2 adds + 1 retry
+
+
+def test_ingest_add_failure_raises_after_final_attempt(cfg, lme_conversations, monkeypatch):
+    import pytest
+
+    from membench.gnosis import GnosisError
+
+    monkeypatch.setattr(ingest, "ADD_RETRY_BACKOFF_S", 0.0)
+    conv = lme_conversations[0]
+
+    class DeadGnosis:
+        def add_memory(self, scope, messages, *, metadata=None):
+            raise GnosisError("POST /v1/memories -> 500: hard down")
+
+    with pytest.raises(GnosisError):
+        ingest.ingest_conversation(DeadGnosis(), cfg, conv, log=lambda _: None)  # type: ignore[arg-type]
+
+
 def test_ingest_pools_sessions_across_conversations(
     gnosis_client, gnosis_transport, cfg, lme_conversations, tmp_path
 ):
