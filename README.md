@@ -124,6 +124,14 @@ gnosis. Use `--subset N` liberally; published papers' judge of record is
 gpt-4o (LongMemEval) / gpt-4o-mini (mem0's LOCOMO runs), so match those for
 comparability.
 
+## Our results
+
+All official gnosis runs are recorded in **[RESULTS.md](RESULTS.md)** — the
+canonical log with per-category tables, run configs, and deviations.
+Headline (LOCOMO subset 3, J excl. adversarial, 2026-07-03): context
+condition **37.4 → 41.0 → 59.5** across three same-day gnosis fixes, vs a
+raw-search reference of 61.3.
+
 ## Published numbers to compare against
 
 ### LongMemEval_S accuracy (Zep paper, [arXiv 2501.13956](https://arxiv.org/abs/2501.13956), Tables 2–3)
