@@ -40,6 +40,12 @@ class Config:
     # retrieval depth for both conditions
     max_items: int = field(default_factory=lambda: int(_env("MEMBENCH_MAX_ITEMS", "20")))
 
+    # Parallel workers for the answer and grade stages (independent per-question
+    # LLM calls). Kept modest by default: the shared LiteLLM/OpenAI endpoint is
+    # rate-limited, and 8 in-flight requests already saturates a typical proxy
+    # without tripping 429s.
+    concurrency: int = field(default_factory=lambda: int(_env("MEMBENCH_CONCURRENCY", "8")))
+
     # include_graph for /v1/memory/context. gnosis's graph-QA planner passes
     # GNOSIS_LLM verbatim to a raw OpenAI client, so LiteLLM-style model names
     # ("openai/...") 500 the endpoint unless gnosis actually sits behind a

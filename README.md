@@ -101,7 +101,25 @@ Key environment variables (see `membench/src/membench/config.py`):
 `GNOSIS_BASE_URL`, `GNOSIS_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
 `MEMBENCH_ANSWER_MODEL`, `MEMBENCH_JUDGE_MODEL`, `MEMBENCH_MAX_ITEMS`
 (retrieval depth, default 20), `MEMBENCH_TENANT_ID` (must match gnosis's
-`GNOSIS_TENANT_ID`, default `bromigos`), `MEMBENCH_INCLUDE_GRAPH`.
+`GNOSIS_TENANT_ID`, default `bromigos`), `MEMBENCH_INCLUDE_GRAPH`,
+`MEMBENCH_CONCURRENCY`.
+
+### Answer/grade concurrency
+
+The answer and grade stages make one independent LLM call per question
+(~497 answers + ~497 judge calls per condition, each ~2–4 s). They run in a
+thread pool sized by `MEMBENCH_CONCURRENCY` (default `8`), overridable per run
+with `--concurrency N`. Records still stream to `answers_<condition>.jsonl` /
+`graded_<condition>.jsonl` as they complete (crash-safe + resumable) and are
+always aggregated in question order regardless of completion order. At 8
+workers each stage is roughly 8× faster — a full run's answer+grade drops from
+~90 min to ~12 min. Use `--concurrency 1` for deterministic, single-threaded
+debugging.
+
+> **Keep it modest.** The answerer and judge share one rate-limited
+> LiteLLM/OpenAI endpoint; going much above 8 in-flight requests tends to trip
+> 429s (which then burn the client's retry budget) rather than go faster. Raise
+> it only if your proxy's rate limits genuinely allow it.
 
 > **Raw-ollama caveat (found live):** gnosis's graph-QA planner
 > (`graph_query_qa.py`) passes `GNOSIS_LLM` verbatim to a plain OpenAI
