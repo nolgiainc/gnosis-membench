@@ -56,6 +56,13 @@ def main(argv: list[str] | None = None) -> int:
         default=1,
         help="parallel session ingests (ordering is preserved within a session)",
     )
+    run.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="parallel answer/grade workers (overrides MEMBENCH_CONCURRENCY; keep <=8 "
+        "against a rate-limited endpoint). Use 1 for serial debugging.",
+    )
 
     args = parser.parse_args(argv)
     cfg = load_config()
@@ -97,6 +104,8 @@ def _run(args: argparse.Namespace, cfg) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"writing results to {out_dir}")
 
+    workers = args.concurrency if args.concurrency is not None else cfg.concurrency
+
     gnosis = GnosisClient(cfg.gnosis_base_url, cfg.gnosis_token, timeout=cfg.request_timeout)
     llm = ChatClient(cfg.openai_base_url, cfg.openai_api_key, timeout=cfg.request_timeout)
 
@@ -120,7 +129,13 @@ def _run(args: argparse.Namespace, cfg) -> int:
         for condition in conditions:
             print(f"answering under condition: {condition}")
             answers[condition] = answer_mod.answer_all(
-                gnosis, llm, cfg, conversations, condition, out_dir / f"answers_{condition}.jsonl"
+                gnosis,
+                llm,
+                cfg,
+                conversations,
+                condition,
+                out_dir / f"answers_{condition}.jsonl",
+                workers=workers,
             )
 
     if "grade" in stages:
@@ -150,7 +165,9 @@ def _run(args: argparse.Namespace, cfg) -> int:
                     out.write(json.dumps(record) + "\n")
                     out.flush()
 
-                newly = grade_fn(llm.complete, cfg.judge_model, pending, on_record=stream)
+                newly = grade_fn(
+                    llm.complete, cfg.judge_model, pending, workers=workers, on_record=stream
+                )
             by_id = {**already, **{r["question_id"]: r for r in newly}}
             graded = [by_id[r["question_id"]] for r in records]
             if args.benchmark == datasets.LONGMEMEVAL_S:

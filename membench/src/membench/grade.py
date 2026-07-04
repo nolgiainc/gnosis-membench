@@ -36,6 +36,8 @@ from typing import Any
 from nltk.stem import PorterStemmer
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 
+from .concurrency import map_streaming
+
 # ===========================================================================
 # LongMemEval — official judge prompt (verbatim from evaluate_qa.py)
 # ===========================================================================
@@ -95,17 +97,23 @@ def grade_longmemeval(
     judge_model: str,
     records: list[dict[str, Any]],
     *,
+    workers: int = 1,
     log: Callable[[str], None] = print,
     on_record: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
-    graded = []
-    for record in records:
-        result = grade_longmemeval_record(complete, judge_model, record)
-        graded.append(result)
+    def on_result(result: dict[str, Any]) -> None:
         if on_record is not None:
             on_record(result)
-        log(f"  judged {record['question_id']}: {'correct' if result['correct'] else 'wrong'}")
-    return graded
+        log(f"  judged {result['question_id']}: {'correct' if result['correct'] else 'wrong'}")
+
+    return map_streaming(
+        records,
+        lambda record: grade_longmemeval_record(complete, judge_model, record),
+        key_fn=lambda record: record["question_id"],
+        workers=workers,
+        on_result=on_result,
+        log=log,
+    )
 
 
 def aggregate_longmemeval(graded: list[dict[str, Any]]) -> dict[str, Any]:
@@ -255,46 +263,58 @@ def parse_judge_label(response: str) -> bool:
     return bool(has_correct and not has_wrong)
 
 
+def grade_locomo_record(
+    complete: JudgeFn, judge_model: str, record: dict[str, Any]
+) -> dict[str, Any]:
+    category_id = int(record["category_id"])
+    scores = score_locomo_lexical(category_id, record["hypothesis"], record["answer"])
+    judged: bool | None
+    if category_id != 5:
+        prompt = LOCOMO_JUDGE_PROMPT.format(
+            question=record["question"],
+            answer=locomo_gold_answer(category_id, record["answer"]),
+            response=record["hypothesis"],
+        )
+        judge_response = complete(
+            judge_model,
+            [{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=200,
+        )
+        judged = parse_judge_label(judge_response)
+    else:
+        judge_response = None
+        judged = locomo_adversarial_correct(record["hypothesis"])
+    return {
+        **record,
+        **scores,
+        "judge_response": judge_response,
+        "correct": judged,
+    }
+
+
 def grade_locomo(
     complete: JudgeFn,
     judge_model: str,
     records: list[dict[str, Any]],
     *,
+    workers: int = 1,
     log: Callable[[str], None] = print,
     on_record: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
-    graded = []
-    for record in records:
-        category_id = int(record["category_id"])
-        scores = score_locomo_lexical(category_id, record["hypothesis"], record["answer"])
-        judged: bool | None = None
-        if category_id != 5:
-            prompt = LOCOMO_JUDGE_PROMPT.format(
-                question=record["question"],
-                answer=locomo_gold_answer(category_id, record["answer"]),
-                response=record["hypothesis"],
-            )
-            judge_response = complete(
-                judge_model,
-                [{"role": "user", "content": prompt}],
-                temperature=0.0,
-                max_tokens=200,
-            )
-            judged = parse_judge_label(judge_response)
-        else:
-            judge_response = None
-            judged = locomo_adversarial_correct(record["hypothesis"])
-        result = {
-            **record,
-            **scores,
-            "judge_response": judge_response,
-            "correct": judged,
-        }
-        graded.append(result)
+    def on_result(result: dict[str, Any]) -> None:
         if on_record is not None:
             on_record(result)
-        log(f"  scored {record['question_id']}: f1={scores['f1']:.3f} judge={judged}")
-    return graded
+        log(f"  scored {result['question_id']}: f1={result['f1']:.3f} judge={result['correct']}")
+
+    return map_streaming(
+        records,
+        lambda record: grade_locomo_record(complete, judge_model, record),
+        key_fn=lambda record: record["question_id"],
+        workers=workers,
+        on_result=on_result,
+        log=log,
+    )
 
 
 def aggregate_locomo(graded: list[dict[str, Any]]) -> dict[str, Any]:

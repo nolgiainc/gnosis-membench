@@ -22,11 +22,11 @@ Answer prompts:
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .concurrency import map_streaming
 from .config import Config
 from .datasets import LOCOMO, LONGMEMEVAL_S, Conversation, Question
 from .gnosis import GnosisClient
@@ -169,29 +169,31 @@ def answer_all(
     condition: str,
     out_path: Path,
     *,
+    workers: int = 1,
     log: Callable[[str], None] = print,
 ) -> list[dict[str, Any]]:
     """Answer every question under one condition, streaming results to JSONL.
 
-    Resumable: question ids already present in ``out_path`` are skipped.
+    Resumable: question ids already present in ``out_path`` are skipped. Work is
+    parallelised across ``workers`` threads; ``workers=1`` is serial. Results
+    are always returned in question order regardless of completion order.
     """
-    done: dict[str, dict[str, Any]] = {}
-    if out_path.exists():
-        with out_path.open() as f:
-            for line in f:
-                record = json.loads(line)
-                done[record["question_id"]] = record
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    results: list[dict[str, Any]] = []
-    with out_path.open("a") as out:
-        for conv in conversations:
-            for question in conv.questions:
-                if question.question_id in done:
-                    results.append(done[question.question_id])
-                    continue
-                record = answer_question(gnosis, llm, cfg, conv, question, condition)
-                results.append(record)
-                out.write(json.dumps(record) + "\n")
-                out.flush()
-                log(f"  [{condition}] {question.question_id}: {record['hypothesis'][:80]!r}")
-    return results
+    items = [(conv, question) for conv in conversations for question in conv.questions]
+
+    def work(item: tuple[Conversation, Question]) -> dict[str, Any]:
+        conv, question = item
+        return answer_question(gnosis, llm, cfg, conv, question, condition)
+
+    def on_result(record: dict[str, Any]) -> None:
+        log(f"  [{condition}] {record['question_id']}: {record['hypothesis'][:80]!r}")
+
+    return map_streaming(
+        items,
+        work,
+        out_path=out_path,
+        key_fn=lambda item: item[1].question_id,
+        workers=workers,
+        done=lambda record: record["question_id"],
+        on_result=on_result,
+        log=log,
+    )
