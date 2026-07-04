@@ -1,0 +1,35 @@
+# Overlay for measured runs of the LLM recall filter: replaces the stock
+# uvicorn CMD with a wrapper that attaches a root-logger handler whose
+# formatter prints `extra` fields, so `recall filter applied`
+# (candidates_in/kept) shows up in `docker logs`. Behavior of the app is
+# otherwise identical.
+#
+#   docker compose -f compose.yaml -f compose.recall-logging.yaml up -d
+services:
+  gnosis:
+    command:
+      - python
+      - -c
+      - |
+        import logging
+        import uvicorn
+
+        _BASE = set(logging.LogRecord("x", 0, "x", 0, "", (), None).__dict__)
+        _BASE |= {"message", "asctime", "taskName"}
+
+        class ExtraFormatter(logging.Formatter):
+            def format(self, record):
+                extras = {
+                    key: value
+                    for key, value in record.__dict__.items()
+                    if key not in _BASE
+                }
+                text = super().format(record)
+                return f"{text} | {extras}" if extras else text
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(ExtraFormatter("%(levelname)s %(name)s: %(message)s"))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        root.setLevel(logging.INFO)
+        uvicorn.run("gnosis.main:app", host="0.0.0.0", port=8080)
