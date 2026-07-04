@@ -5,21 +5,25 @@ from conftest import FakeChat
 from membench import answer, ingest
 
 
-def test_ingest_writes_one_extraction_add_per_turn(
+def test_ingest_writes_one_extraction_add_per_turn_pair(
     gnosis_client, gnosis_transport, cfg, lme_conversations, tmp_path
 ):
     conv = lme_conversations[0]  # 2 sessions x 2 turns
     written = ingest.ingest_conversation(gnosis_client, cfg, conv, log=lambda _: None)
     assert written == 4
     adds = [body for path, body in gnosis_transport.requests if path == "/v1/memories"]
-    assert len(adds) == 4
+    assert len(adds) == 2  # one add per user+assistant pair
     first = adds[0]
     assert first["infer"] is True
     assert first["messages"] == [
         {
             "role": "user",
             "content": "I started learning guitar last month and I practice every evening.",
-        }
+        },
+        {
+            "role": "assistant",
+            "content": "That's wonderful! Consistent practice is the key to progress.",
+        },
     ]
     scope = first["scope"]
     assert scope["tenant_id"] == "bromigos"
@@ -29,6 +33,37 @@ def test_ingest_writes_one_extraction_add_per_turn(
     # haystack session date carried in metadata
     assert first["metadata"]["session_date"] == "2023/05/01 (Mon) 10:00"
     assert first["metadata"]["session_id"] == "s1"
+
+
+def test_ingest_odd_turn_count_sends_final_single_message_add(
+    gnosis_client, gnosis_transport, cfg, lme_conversations
+):
+    from dataclasses import replace
+
+    conv = lme_conversations[0]
+    session = conv.sessions[0]
+    odd_session = replace(session, turns=session.turns + (session.turns[0],))
+    odd_conv = replace(conv, sessions=(odd_session,))
+    written = ingest.ingest_conversation(gnosis_client, cfg, odd_conv, log=lambda _: None)
+    assert written == 3
+    adds = [body for path, body in gnosis_transport.requests if path == "/v1/memories"]
+    assert [len(a["messages"]) for a in adds] == [2, 1]
+
+
+def test_ingest_concurrent_sessions_writes_same_adds(
+    gnosis_client, gnosis_transport, cfg, lme_conversations
+):
+    conv = lme_conversations[0]  # 2 sessions x 2 turns
+    written = ingest.ingest_conversation(
+        gnosis_client, cfg, conv, concurrency=4, log=lambda _: None
+    )
+    assert written == 4
+    adds = [body for path, body in gnosis_transport.requests if path == "/v1/memories"]
+    assert len(adds) == 2
+    assert {a["scope"]["session_id"] for a in adds} == {
+        "longmemeval_s:mini_1:s1",
+        "longmemeval_s:mini_1:s2",
+    }
 
 
 def test_ingest_inline_dates_prefixes_content(

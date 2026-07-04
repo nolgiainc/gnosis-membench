@@ -69,8 +69,10 @@ services:
       GNOSIS_EMBEDDING_DIMENSIONS: ${GNOSIS_EMBEDDING_DIMENSIONS:-768}
       # --- benchmark-friendly behavior ---
       GNOSIS_WRITE_MODE: sync
-      # --- feature under test (recall-filter run, 2026-07-03) ---
+      # --- measured features (default-off; set per run) ---
       GNOSIS_RECALL_FILTER_ENABLED: ${GNOSIS_RECALL_FILTER_ENABLED:-false}
+      # extraction run, 2026-07-03: ingest-time EDU fact extraction (gnosis PR #14)
+      GNOSIS_FACT_EXTRACTION_ENABLED: ${GNOSIS_FACT_EXTRACTION_ENABLED:-false}
 
 volumes:
   neo4j-data:

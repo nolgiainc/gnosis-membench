@@ -50,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="also prefix ingested turn content with the session date (see ingest.py)",
     )
+    run.add_argument(
+        "--ingest-concurrency",
+        type=int,
+        default=1,
+        help="parallel session ingests (ordering is preserved within a session)",
+    )
 
     args = parser.parse_args(argv)
     cfg = load_config()
@@ -100,7 +106,12 @@ def _run(args: argparse.Namespace, cfg) -> int:
             return 1
         state_path = out_dir / "ingest_state.json"
         summary = ingest.ingest(
-            gnosis, cfg, conversations, state_path, inline_dates=args.inline_dates
+            gnosis,
+            cfg,
+            conversations,
+            state_path,
+            inline_dates=args.inline_dates,
+            concurrency=args.ingest_concurrency,
         )
         print(f"ingest complete: {summary}")
 
