@@ -86,6 +86,7 @@ services:
       GNOSIS_ADAPTIVE_ROUTING_ENABLED: ${GNOSIS_ADAPTIVE_ROUTING_ENABLED:-false}
       # graph-traversal run, 2026-07-04: entity-anchored RELATES traversal (T1, gnosis PR #35)
       GNOSIS_GRAPH_TRAVERSAL_ENABLED: ${GNOSIS_GRAPH_TRAVERSAL_ENABLED:-false}
+      GNOSIS_BRIDGE_TRAVERSAL_ENABLED: ${GNOSIS_BRIDGE_TRAVERSAL_ENABLED:-false}
       # chain-of-note run, 2026-07-04: read-then-reason instruction (T2, gnosis PR #31)
       GNOSIS_CHAIN_OF_NOTE_ENABLED: ${GNOSIS_CHAIN_OF_NOTE_ENABLED:-false}
 
