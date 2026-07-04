@@ -14,7 +14,12 @@ import httpx
 
 
 class GnosisError(RuntimeError):
-    pass
+    """Any failed gnosis call: HTTP >= 400, or a transport error/timeout.
+
+    Transport failures (dropped port-forward tunnel, read timeout while the
+    server chews on a slow extraction) surface as this same type so callers
+    can treat every failure as retryable.
+    """
 
 
 class GnosisClient:
@@ -52,7 +57,10 @@ class GnosisClient:
         }
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        response = self._client.post(path, json=payload)
+        try:
+            response = self._client.post(path, json=payload)
+        except httpx.HTTPError as exc:
+            raise GnosisError(f"POST {path} -> {type(exc).__name__}: {exc}") from exc
         if response.status_code >= 400:
             raise GnosisError(f"POST {path} -> {response.status_code}: {response.text[:500]}")
         return response.json()
