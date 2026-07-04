@@ -88,6 +88,46 @@ def test_ingest_is_resumable(gnosis_client, gnosis_transport, cfg, lme_conversat
     assert set(json.loads(state.read_text())["done"]) == {"mini_1", "mini_2_abs"}
 
 
+def test_ingest_pools_sessions_across_conversations(
+    gnosis_client, gnosis_transport, cfg, lme_conversations, tmp_path
+):
+    """Concurrent ingest writes the same adds as serial and completes the state."""
+    convs = lme_conversations[:2]
+    serial_state = tmp_path / "serial.json"
+    ingest.ingest(gnosis_client, cfg, convs, serial_state, log=lambda _: None)
+    serial_adds = sorted(
+        json.dumps(body, sort_keys=True)
+        for path, body in gnosis_transport.requests
+        if path == "/v1/memories"
+    )
+
+    import httpx
+    from conftest import RecordingGnosisTransport
+
+    from membench.gnosis import GnosisClient
+
+    transport = RecordingGnosisTransport()
+    client = GnosisClient(
+        "http://gnosis.test",
+        "test-token",
+        client=httpx.Client(
+            base_url="http://gnosis.test",
+            headers={"Authorization": "Bearer test-token"},
+            transport=transport,
+        ),
+    )
+    parallel_state = tmp_path / "parallel.json"
+    summary = ingest.ingest(client, cfg, convs, parallel_state, concurrency=4, log=lambda _: None)
+    assert summary["turns_written"] == 6
+    parallel_adds = sorted(
+        json.dumps(body, sort_keys=True)
+        for path, body in transport.requests
+        if path == "/v1/memories"
+    )
+    assert parallel_adds == serial_adds
+    assert set(json.loads(parallel_state.read_text())["done"]) == {"mini_1", "mini_2_abs"}
+
+
 def test_retrieve_search_condition_formats_dates(
     gnosis_client, gnosis_transport, cfg, lme_conversations
 ):

@@ -116,10 +116,23 @@ workers each stage is roughly 8× faster — a full run's answer+grade drops fro
 ~90 min to ~12 min. Use `--concurrency 1` for deterministic, single-threaded
 debugging.
 
+The grade stage never touches gnosis or embeddings (one short judge call per
+question), so it can safely run hotter than the answer stage:
+`--grade-concurrency 24` overrides just that stage.
+
+Ingest parallelism (`--ingest-concurrency N`) pools sessions across ALL
+conversations (per-session add ordering is preserved — extraction context
+depends on it). With many small conversations (LongMemEval: one conversation
+per question) this avoids draining the pool to a straggler tail at every
+conversation boundary.
+
 > **Keep it modest.** The answerer and judge share one rate-limited
 > LiteLLM/OpenAI endpoint; going much above 8 in-flight requests tends to trip
 > 429s (which then burn the client's retry budget) rather than go faster. Raise
-> it only if your proxy's rate limits genuinely allow it.
+> it only if your proxy's rate limits genuinely allow it. (Measured 2026-07-04:
+> a local embedding call is ~40 ms and is NOT the ceiling — if transient 500s
+> appear at higher concurrency, suspect the single `kubectl port-forward`
+> tunnel to LiteLLM, not the embedder.)
 
 > **Raw-ollama caveat (found live):** gnosis's graph-QA planner
 > (`graph_query_qa.py`) passes `GNOSIS_LLM` verbatim to a plain OpenAI
