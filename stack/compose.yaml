@@ -24,9 +24,16 @@ services:
     image: neo4j:5.26
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-membench-neo4j}
+      # Bounded so a second benchmark stack (docker compose -p <name>) can run
+      # beside the primary one; neo4j's auto-sizing would otherwise grab most
+      # of the docker VM per instance. Applies on container (re)create only.
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-2G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-1G}
     ports:
-      - "7474:7474" # browser
-      - "7687:7687" # bolt
+      # Parametrized so two stacks (e.g. a LongMemEval run and a LOCOMO
+      # regression stack) can run concurrently under different project names.
+      - "${NEO4J_HTTP_PORT:-7474}:7474" # browser
+      - "${NEO4J_BOLT_PORT:-7687}:7687" # bolt
     volumes:
       - neo4j-data:/data
     healthcheck:
@@ -46,7 +53,7 @@ services:
       neo4j:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${GNOSIS_PORT:-8080}:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway" # so ollama on the host is reachable on linux too
     environment:
@@ -96,6 +103,10 @@ services:
       GNOSIS_COVERAGE_BUDGET_MULTIPLIER: ${GNOSIS_COVERAGE_BUDGET_MULTIPLIER:-1}
       # chain-of-note run, 2026-07-04: read-then-reason instruction (T2, gnosis PR #31)
       GNOSIS_CHAIN_OF_NOTE_ENABLED: ${GNOSIS_CHAIN_OF_NOTE_ENABLED:-false}
+      # CoN widening runs, 2026-07-04: speculative-inference carve-out and
+      # route-aware exhaustive enumeration (gnosis PR #52)
+      GNOSIS_CON_SPECULATIVE_INFERENCE_ENABLED: ${GNOSIS_CON_SPECULATIVE_INFERENCE_ENABLED:-false}
+      GNOSIS_CON_ENUMERATION_ENABLED: ${GNOSIS_CON_ENUMERATION_ENABLED:-false}
 
 volumes:
   neo4j-data:
