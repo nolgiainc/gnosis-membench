@@ -25,6 +25,17 @@ and the benchmark papers publish — and comparable to our own previous runs
   LLM-judge "J" score (mem0-style, categories 1–4; adversarial uses the
   official substring rule).
 
+Both benchmarks are in active use (2026-07-04): **LOCOMO subset 3 is the
+frozen regression gate** (saturated for gnosis — the ±2.3 J noise floor
+between identical configs now exceeds every remaining lever; see the
+saturation note in [RESULTS.md](RESULTS.md)) and **LongMemEval_S is the
+primary optimization target**, run on a frozen 100-instance stratified
+subset (question ids in `membench/data/longmemeval_s_subset100.txt`,
+regenerated deterministically by `membench/scripts/make_lme_subset100.py`)
+with `gemini-embedding-001` (3072-dim) embeddings, gpt-5.5 extraction, and
+the official judge prompts on a frozen gpt-5.5 judge. Both frozen configs
+are specified precisely in [RESULTS.md](RESULTS.md).
+
 ## How it works
 
 ```
@@ -159,9 +170,15 @@ comparability.
 
 All official gnosis runs are recorded in **[RESULTS.md](RESULTS.md)** — the
 canonical log with per-category tables, run configs, and deviations.
-Headline (LOCOMO subset 3, J excl. adversarial, 2026-07-03): context
-condition **37.4 → 41.0 → 59.5** across three same-day gnosis fixes, vs a
-raw-search reference of 61.3.
+Headline (LOCOMO subset 3, context condition, J excl. adversarial):
+**37.4 (Run 1 baseline, 2026-07-03) → 74.8 (Run 18, 2026-07-04)** across
+19 measured runs, with overall J (incl. adversarial) at **76.7** — above
+every published memory system on this benchmark, and above the published
+full-context ceiling of 72.9 (different judge, so directional only).
+Run 18 is the production config (fact extraction + entity graph at write;
+adaptive routing + route-aware hardened Chain-of-Note at read) and the
+frozen LOCOMO regression gate. The LongMemEval_S baseline (L-0) on the
+frozen 100-instance subset is in progress.
 
 ## Published numbers to compare against
 
