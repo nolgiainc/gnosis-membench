@@ -73,7 +73,7 @@ Read-path changes on the Run 10 entity-graph store:
 | 19 (PR #43+#44) | 2x coverage item budget on multi-hop/aggregative routes | 72.5 | — | **rejected — retrieval coverage improved, answers did not.** Gold-item presence on the 27-question enumeration cohort rose 50%→60% yet **0/27 repaired**: even fully-covered questions still answer with a subset. The residual failure is the reader/judge (exact multi-item list golds), not retrieval. Also quantified the noise floor: 20 flips on 437 byte-identical-retrieval questions (±2.3 J between identical configs). |
 | 20 (PR #52) | speculative-inference CoN widening | 74.3 | — | **tunable — open-domain +9.5 on same-store control (38.1→47.6), adversarial −1.7 (82.1→80.4).** 2/2 open-domain repairs vs control (+2/−0); 2/9 targeted abstention misses fixed. Not a production keep alone — the wider carve-out trades adversarial precision for speculative answers. |
 | 21 (PR #52) | enumeration CoN widening (multi-hop/aggregative routes) | 71.7 | — | **rejected — multi-hop flat at 39.2 (+3/−3 flips vs same-store control).** 30/74 multi-hop answers changed text but net zero; list-shaped golds still answered with one salient item or a different subset. Confirms Run 19: the enumeration gap is structural rendering + exact-list grading, not retrieval or instruction alone. |
-| 22 (PR TBD) | entity-grouped rendering (GRAVITY-style, multi-hop/aggregative routes) | *running* | — | — |
+| 22 (PR #53) | entity-grouped rendering (GRAVITY-style, multi-hop/aggregative routes) | 71.9 | — | **rejected — multi-hop 39.2→36.5 (−2.7 vs same-store control, +0/−2 flips).** Entity headers did not repair enumerations; may have disrupted dense-rank reading order. Production config unchanged (Run 18). |
 
 **Current best: Run 18 — excl-adv 74.8 AND overall 76.7, both new
 bests, with every category at or within noise of its historic peak
@@ -728,6 +728,24 @@ Retrieval mechanism stats (context condition unless noted):
   **entity-grouped structured rendering** (GRAVITY entity profiles,
   arXiv 2605.01688) — measured as Run 22.
 
+### Run 22 — `results/locomo/entity-grouped-20260704/` (entity-grouped rendering, gnosis PR #53)
+
+- Run 18 config on the same store with
+  ``GNOSIS_ENTITY_GROUPED_RENDERING_ENABLED=true``: groups retrieved
+  facts under ``#### Entity`` headers on multi-hop/aggregative routes;
+  query-named entities sort first (GRAVITY entity-profile anchoring).
+  Context only.
+- **Scores: excl-adv 71.9 / overall 74.2.** multi-hop **36.5** (−2.7 vs
+  control 39.2), single-hop 82.0 (+1.5), temporal 86.7 (+1.1),
+  open-domain 38.1 (flat), adversarial 82.1 (flat).
+- Per-question vs control: multi-hop +0/−2; no enumeration repairs.
+  Grouping may have disrupted the dense-rank order the reader relied on.
+- **Verdict: rejected.** Three reader-side levers (Run 21 enumeration
+  CoN, Run 22 entity grouping, Run 19 coverage budget) all fail on
+  multi-hop enumerations. The residual gap vs mem0's 51.15 J is partly
+  grading-inflated and partly exact-list judge strictness on ambiguous
+  golds — not a retrieval problem.
+
 ## LongMemEval_S — primary optimization target (from 2026-07-04)
 
 **Frozen config (LongMemEval_S)**: 100-instance stratified subset of the
@@ -835,10 +853,13 @@ composition (76% vs 23% speculative questions), (b) judge strictness, and
 graph variant (47.19) proves graphs are not the edge. Consolidation
 UPDATE/DELETE (mem0's write path) may help dedupe but is unmeasured here.
 
-**Next lever:** Run 22 — entity-grouped rendering
-(``GNOSIS_ENTITY_GROUPED_RENDERING_ENABLED``) on multi-hop/aggregative
-routes, GRAVITY-style (arXiv 2605.01688). Combined Run 20+21 **not**
-started — Run 21 underdelivers and Run 20 hurts adversarial.
+**Next lever:** Multi-hop enumeration is now measured-out on the reader
+side (Runs 19–22). Highest remaining options: (1) tunable Run 20
+speculative-inference CoN with an adversarial guard for production
+open-domain gains; (2) full-LOCOMO Run 18 re-measurement for
+apples-to-apples competitor comparison; (3) hybrid sparse+dense (frontier
+consensus, unmeasured since Run 6 wash); (4) resume L-0 LongMemEval
+baseline when quota headroom is safe.
 
 ## Known limitations of the current record
 
