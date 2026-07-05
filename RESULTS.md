@@ -1,5 +1,18 @@
 # Official benchmark results log
 
+> **Full-LOCOMO standing (Run 23, 2026-07-04).** Runs 1–22 were all measured
+> on **subset 3** (3 of 10 conversations, 497 Q) as a fast dev-loop gate —
+> not comparable-n to published systems. **Run 23** is the first full-10
+> measurement of the production (Run 18) config and is the apples-to-apples
+> competitor comparison: excl-adv J **66.9–68.9** (gpt-5.5 / gpt-5.4-mini
+> judges) — **at parity with mem0 (66.88)**, tying mem0^g (68.44), below the
+> full-context ceiling (72.90). Defensible full-n leads: **single-hop** (both
+> axes), **temporal** and **adversarial** (judge-robust J), **multi-hop on the
+> judge-independent F1**. Genuine weakness: **open-domain**. The prior "74.8,
+> above the ceiling, best overall" headline was a subset-3 artifact (and 74.8
+> itself reproduces at ~71); it does not hold at full n. See the **Run 23**
+> section for details.
+
 Canonical record of all gnosis memory-quality benchmark runs. Every run uses the
 frozen comparison config unless a deviation is noted. Raw artifacts
 (`answers_*.jsonl`, `graded_*.jsonl`, `results.json`, `report.md`) live in the
@@ -115,16 +128,25 @@ between identical configs is ±2.3 J excl-adv, wider than every
 post-Run-15 delta; (2) the largest remaining category gap (multi-hop
 ~44) is capped by exact-list grading — full gold coverage in context
 does not flip answers; (3) temporal's 1.1 gap to peak is one
-question. Run 18's 74.8 excl-adv sits above the published
-full-context ceiling (72.9, different judge — directional only).
+question. **[Superseded by Run 23.]** Run 18's subset-3 74.8 excl-adv was
+originally read as sitting above the full-context ceiling (72.9); the
+full-LOCOMO re-measure (Run 23) shows this does **not** hold — at full n
+excl-adv J is 66.9–68.9 (two judges), at parity with mem0 and below the
+72.9 ceiling. The subset-3 74.8 was also ~4 pts optimistic (reproduces
+~71 on re-ingest). The saturation claim below refers to subset-3 as a
+dev-loop gate, not to the competitive standing.
 
 **Status (2026-07-04): LOCOMO subset 3 is FROZEN as the regression
 gate at the Run 18 config** (extraction + entity graph at write;
 adaptive routing + route-aware hardened CoN v3 with the likelihood
 carve-out at read; embeddings `local-qwen3-embedding-0.6b` /
 1024-dim; judge gpt-5.5; `max_items` 20; context condition).
-Reference scores for the gate: excl-adv 74.8 / overall 76.7, with a
-±2.3 J noise band on excl-adv between identical configs. Any future
+Reference scores for the gate: excl-adv **~71** (the reproducible
+level — the originally-recorded 74.8 was a ~4 pt favorable-extraction
+outlier; two independent re-ingests land at 70.9 and 71.4), with a
+±2.3 J noise band on excl-adv between identical configs. **This gate is
+an internal dev-loop signal on 3 easy conversations, not a competitive
+claim — see Run 23 for the full-LOCOMO competitive standing.** Any future
 gnosis change should re-run this gate and is a regression only if it
 lands below the noise band, judged per-category. The gate keeps the
 qwen3 embedder its whole history was measured with, so its recorded
@@ -746,6 +768,91 @@ Retrieval mechanism stats (context condition unless noted):
   grading-inflated and partly exact-list judge strictness on ambiguous
   golds — not a retrieval problem.
 
+### Run 23 — `results/locomo/full-locomo-run18-20260704/` (FULL LOCOMO re-measure of the Run 18 config)
+
+**The first full-10-conversation measurement in the campaign, and the
+apples-to-apples competitor comparison.** Every prior LOCOMO run (Runs
+1–22) was measured on subset 3 (conv-26/30/41, 497 Q); published
+mem0/Zep numbers are full LOCOMO (~1,540 excl-adv Q). Run 23 measures
+the **exact Run 18 production config** on all 10 conversations (1,986 Q
+/ 1,540 excl-adv) so our numbers and theirs share an n.
+
+- **Config: byte-identical to Run 18** (extraction + entity graph at
+  write; adaptive routing + route-aware hardened CoN v3 w/ likelihood
+  carve-out at read; qwen3/1024 embeddings; `max_items` 20; context;
+  judge gpt-5.5). Store built by extending the subset-3 store with
+  conv-42..50 under the same write config — all 10 conversations
+  verified healthy (850–1,500 Facts each + entity nodes; no
+  verbatim-only degradation). Read fidelity confirmed: 4,965 avg
+  context chars ≈ Run 18's 4,932; 24% "no information" ≈ Run 18's 24.7%.
+- **Two judges** (bounds judge variance; gpt-4o-mini — mem0's judge —
+  is not routable on the homelab stack): gpt-5.5 (frozen judge) and
+  gpt-5.4-mini (`results/locomo/full-locomo-run18-judge54mini-20260704/`).
+  F1/BLEU-1 (official snap-research scorer, judge-independent) is the
+  model-independent anchor.
+
+**Full-n scores** (per category: F1 / BLEU-1 / J-gpt5.5 / J-gpt5.4mini):
+
+| Category | n | gnosis F1 / B1 / J5.5 / J5.4m | mem0 F1/J | mem0^g F1/J | Zep F1/J |
+|---|---|---|---|---|---|
+| single-hop | 841 | 60.9 / 54.1 / 77.0 / 77.8 | 38.72/67.13 | 38.09/65.71 | 35.74/61.70 |
+| multi-hop | 282 | 34.3 / 29.1 / 41.5 / 49.6 | 28.64/51.15 | 24.32/47.19 | 19.37/41.35 |
+| temporal | 321 | 32.5 / 27.1 / 73.8 / 73.8 | 48.93/55.51 | 51.55/58.13 | 42.00/49.31 |
+| open-domain | 96 | 18.0 / 14.1 / 29.2 / 31.2 | 47.65/72.93 | 49.27/75.71 | 49.56/76.60 |
+| adversarial | 446 | 83.9 / — / 83.9 / 83.9 | — | — | — |
+| **excl-adv** | 1540 | **47.5 / 41.4 / 66.9 / 68.9** | 66.88 (J) | 68.44 (J) | 65.99 (J) |
+| overall (incl-adv) | 1986 | 55.6 / 50.9 / 70.7 / 72.3 | — | — | — |
+
+Full-context baseline excl-adv J = 72.90 (all published numbers use a
+gpt-4o-mini judge).
+
+- **Reproducibility finding (material).** The original-3 conversations,
+  re-measured inside this faithful full run, score excl-adv J **70.9** —
+  not the recorded subset-3 Run 18 of 74.8. This matches the
+  independent control re-ingest `run18-control-lab` (71.4). **The 74.8
+  gate number was ~4 pts optimistic** (a favorable extraction epoch);
+  the reproducible Run 18 subset-3 level is ~71. The full-n 66.9
+  decomposes as: original-3 slice 70.9 + the (harder) new-7 slice 65.5.
+- **Judge sensitivity (the multi-hop story).** gpt-5.4-mini is more
+  generous than gpt-5.5, unevenly: multi-hop **+8.2** (41.5→49.6),
+  open-domain +2.1, single-hop +0.7, and temporal / adversarial **+0.0**
+  (judge-robust). So multi-hop's apparent deficit vs mem0's 51.15 is
+  dominated by judge choice: under a comparable-generosity judge we sit
+  at 49.6 (−1.5), and we already **lead** the judge-independent F1
+  (34.3 vs 28.64). Temporal and adversarial leads do not move with the
+  judge — the most defensible J claims.
+
+**Honest competitive verdict at full n:**
+- **single-hop — defensible lead, both axes, both judges.** J 77–78 vs
+  mem0 67.13; F1 60.9 vs 38.72 (+22).
+- **temporal — defensible J lead, judge-robust; F1 is a metric
+  artifact.** J 73.8 (both judges) vs mem0^g 58.13 (+15.7), Zep 49.31
+  (+24.5). F1 32.5 *trails* only because our reader emits dates as
+  `2023-05-07`/`last year` vs gold `7 May 2023` — F1 can't see date
+  equivalence; the date-tolerant J can.
+- **multi-hop — objective F1 beats mem0; J gap is judge-generosity, not
+  capability.** F1 34.3 vs mem0 28.64 (+5.7), Zep 19.37 (+14.9). J
+  41.5→49.6 across judges vs mem0 51.15. Confirms Runs 19–22: the
+  residual is exact-list grading, not retrieval.
+- **open-domain — genuine trail, both axes.** J 29–31 vs Zep 76.60 /
+  mem0 72.93; F1 18.0 vs ~48. The real weakness; full-n n=96 removes
+  the "subset noise" defense the subset-3 n=21 allowed.
+- **adversarial — 83.9, judge-robust, uniquely measured.** No mem0/Zep
+  per-category number.
+- **overall excl-adv — at parity with mem0, NOT a lead.** J 66.9–68.9
+  across our two judges brackets mem0's 66.88 and ties mem0^g (68.44);
+  **below the full-context ceiling 72.90.** The subset-3 "74.8, above
+  the ceiling, best overall" claim does **not** survive full n. With
+  the judge caveat cutting our way (our judges run hotter than
+  gpt-4o-mini), same-judge parity could even be a slight deficit.
+
+**Verdict: Run 23 is the authoritative competitor comparison; the
+subset-3 numbers are retained as the internal dev-loop regression gate
+only.** Real, defensible leads at full n: single-hop (both axes),
+temporal and adversarial (judge-robust J), multi-hop (objective F1).
+Real weakness: open-domain. Overall: competitive with mem0, not ahead
+of the field.
+
 ## LongMemEval_S — primary optimization target (from 2026-07-04)
 
 **Frozen config (LongMemEval_S)**: 100-instance stratified subset of the
@@ -806,7 +913,19 @@ PR #47: extraction re-samples malformed LLM JSON instead of 500ing).
 |---|---|---|---|
 | L-0 (baseline) | Run 18 config + gemini embeddings + scoped dense retrieval | *ingesting* | — |
 
-## Published comparison targets (definitive per-category ledger, 2026-07-04)
+## Published comparison targets (per-category ledger)
+
+> **⚠️ Superseded for competitor comparison by Run 23 (full-n).** The table
+> below compares our **subset-3** Run 18 numbers against competitors'
+> **full-LOCOMO** numbers — an n-mismatch that inflated our standing. Run 23
+> re-measured the Run 18 config on all 10 conversations; at full n our
+> excl-adv J is **66.9–68.9** (gpt-5.5 / gpt-5.4-mini) vs mem0 66.88 /
+> mem0^g 68.44 / Zep 65.99 / full-context 72.90 — **parity with mem0, not
+> the "+1.9 above the ceiling" the subset-3 row below claims.** Defensible
+> full-n leads: single-hop (both axes), temporal + adversarial (judge-robust
+> J), and multi-hop on the judge-independent F1. Genuine full-n weakness:
+> open-domain. See the **Run 23** section for the authoritative comparison;
+> the rows below are retained as the subset-3 historical record.
 
 LOCOMO per-category **J** (LLM judge CORRECT/WRONG). Our numbers are Run 18
 on **subset 3** (conv-26/30/41, n=497) with **gpt-5.5** judge+answerer;
@@ -863,7 +982,10 @@ baseline when quota headroom is safe.
 
 ## Known limitations of the current record
 
-- Subset 3 of 10 LOCOMO conversations; LongMemEval_S not yet run at scale.
+- Runs 1–22 used subset 3 of 10 LOCOMO conversations (dev-loop gate); the
+  production Run 18 config is now measured on the full 10 (Run 23) for the
+  competitor comparison, but per-run A/B history remains subset-3 only.
+  LongMemEval_S not yet run at scale.
 - Answerer route changed between Run 1 and Runs 2-4 (Copilot quota) — the
   judge was held constant, but the context-vs-search comparison within Run 1
   is the cleanest same-route pair.
