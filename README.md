@@ -26,9 +26,10 @@ and the benchmark papers publish — and comparable to our own previous runs
   official substring rule).
 
 Both benchmarks are in active use (2026-07-04): **LOCOMO subset 3 is the
-frozen regression gate** (saturated for gnosis — the ±2.3 J noise floor
-between identical configs now exceeds every remaining lever; see the
-saturation note in [RESULTS.md](RESULTS.md)) and **LongMemEval_S is the
+frozen dev-loop regression gate** (noise-saturated at the subset level — the
+±2.3 J floor between identical configs exceeds every remaining subset lever;
+the **full-LOCOMO, same-n competitor comparison is Run 23**, see the
+saturation note and Run 23 in [RESULTS.md](RESULTS.md)) and **LongMemEval_S is the
 primary optimization target**, run on a frozen 100-instance stratified
 subset (question ids in `membench/data/longmemeval_s_subset100.txt`,
 regenerated deterministically by `membench/scripts/make_lme_subset100.py`)
@@ -170,15 +171,20 @@ comparability.
 
 All official gnosis runs are recorded in **[RESULTS.md](RESULTS.md)** — the
 canonical log with per-category tables, run configs, and deviations.
-Headline (LOCOMO subset 3, context condition, J excl. adversarial):
-**37.4 (Run 1 baseline, 2026-07-03) → 74.8 (Run 18, 2026-07-04)** across
-19 measured runs, with overall J (incl. adversarial) at **76.7** — above
-every published memory system on this benchmark, and above the published
-full-context ceiling of 72.9 (different judge, so directional only).
-Run 18 is the production config (fact extraction + entity graph at write;
-adaptive routing + route-aware hardened Chain-of-Note at read) and the
-frozen LOCOMO regression gate. The LongMemEval_S baseline (L-0) on the
-frozen 100-instance subset is in progress.
+Two measurement scopes matter. **Subset-3 dev-loop gate** (Runs 1–22, 3 of
+10 conversations) — the fast regression signal used during development:
+**37.4 (Run 1) → ~71 (Run 18 reproducible; the recorded 74.8 was a
+favorable-extraction outlier)**. **Full-LOCOMO (Run 23)** — the first
+all-10-conversation measurement of the production config and the only
+apples-to-apples competitor comparison: excl-adv J **66.9–68.9** (gpt-5.5 /
+gpt-5.4-mini judges), **at parity with mem0 (66.88)**, below the
+full-context ceiling (72.90). Defensible full-n leads: **single-hop** (both
+axes), **temporal** and **adversarial** (judge-robust J), **multi-hop on the
+judge-independent F1**; genuine weakness: **open-domain**. (The earlier
+"74.8, above the ceiling, best overall" framing was a subset-3 artifact and
+does not hold at full n.) Run 18 is the production config (fact extraction +
+entity graph at write; adaptive routing + route-aware hardened
+Chain-of-Note at read). The LongMemEval_S baseline (L-0) is pending.
 
 ## Published numbers to compare against
 
@@ -210,14 +216,21 @@ full-context** on `longmemeval_s` — treat ~0.87 as the retrieval ceiling.
 | OpenAI memory | 34.30 / 23.72 / 63.79 | 20.09 / 15.42 / 42.92 | 14.04 / 11.25 / 21.71 | 39.31 / 31.16 / 62.29 | 52.90% |
 | A-Mem (mem0 rerun) | 20.76 / 14.90 / 39.79 | 9.22 / 8.81 / 18.85 | 35.40 / 31.08 / 49.91 | 33.34 / 27.58 / 54.05 | 48.38% |
 | **Full-context baseline** | — | — | — | — | **72.90%** |
-| **Gnosis Run 18** (subset 3, gpt-5.5 J) | **82.0** | **44.6** | **91.1** | **42.9** | **74.8%** excl-adv / **76.7%** overall |
+| **Gnosis Run 23** (full 10, F1/B1/J-gpt5.5) | 60.9 / 54.1 / 77.0 | 34.3 / 29.1 / 41.5 | 32.5 / 27.1 / 73.8 | 18.0 / 14.1 / 29.2 | **66.9%** (gpt5.5) / 68.9% (gpt5.4-mini) |
+| _Gnosis Run 18_ (subset 3, J only — **not comparable-n**) | _82.0_ | _44.6_ | _91.1_ | _42.9_ | _74.8 / 76.7 (subset-3 gate)_ |
 
-Run 18 **leads** single-hop (+15 vs mem0), temporal (+33 vs mem0-graph),
-and overall excl-adv (+2 vs full-context, different judge). **Trails**
-multi-hop (−6.6 vs mem0 — partly grading-inflated; see RESULTS.md) and
-open-domain (−34 vs Zep — largely subset-composition artifact: our n=21 is
-76% speculative-phrased vs 23% on full LOCOMO). Adversarial **83.0** —
-not published by mem0/Zep; we lead on abstention behavior.
+**Run 23 is the apples-to-apples comparison (same full n).** Defensible
+**leads**: single-hop (J 77 vs mem0 67.13; **F1 60.9 vs 38.72**); temporal
+(J 73.8 vs mem0-graph 58.13, judge-robust — its low F1 is a date-format
+artifact, not a deficit); multi-hop on the **judge-independent F1** (34.3 vs
+mem0 28.64) even though its J trails — the multi-hop J gap is dominated by
+judge generosity (41.5 on gpt-5.5 → 49.6 on gpt-5.4-mini vs mem0 51.15).
+Adversarial **83.9** (judge-robust; unpublished by mem0/Zep). **Trails**:
+open-domain (J 29–31 vs Zep 76.6 / mem0 72.9 — a genuine full-n weakness).
+**Overall excl-adv J 66.9–68.9 is at parity with mem0 (66.88)**, ties
+mem0-graph (68.44), and sits below the full-context ceiling (72.90). The
+subset-3 row is retained for history but compares our easy-3 against
+everyone's full-10 and is not a competitive claim.
 
 Letta's own blog run ([source](https://www.letta.com/blog/benchmarking-ai-agent-memory/))
 reports **74.0%** on LOCOMO for a Letta filesystem agent (gpt-4o-mini). A-Mem's
