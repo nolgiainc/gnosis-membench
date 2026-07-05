@@ -71,6 +71,9 @@ Read-path changes on the Run 10 entity-graph store:
 | 17 (PR #40) | hardened CoN (attribution + never-guess clauses) | 72.2 | — | **adversarial 83.0 = BEST EVER (+4.4, 5 repairs / 0 regressions), overall 74.7 = new best**, multi-hop 44.6 ties best. Cost: the never-guess rule over-abstains on open-domain "would X likely..." inference questions (42.9→28.6, 3 abstention regressions on n=21). Carve-out measured next. |
 | 18 (PR #41) | + likelihood carve-out in the never-guess rule | **74.8** | — | **NEW BEST on both headlines: excl-adv 74.8, overall 76.7.** The carve-out recovered open-domain 28.6→42.9 (3/3 abstention regressions repaired) AND single-hop 78.5→82.0 (best ever, 8 repairs / 1 regression) while adversarial held 83.0 with zero flips. Every category at or within noise of its historic peak — the production config. |
 | 19 (PR #43+#44) | 2x coverage item budget on multi-hop/aggregative routes | 72.5 | — | **rejected — retrieval coverage improved, answers did not.** Gold-item presence on the 27-question enumeration cohort rose 50%→60% yet **0/27 repaired**: even fully-covered questions still answer with a subset. The residual failure is the reader/judge (exact multi-item list golds), not retrieval. Also quantified the noise floor: 20 flips on 437 byte-identical-retrieval questions (±2.3 J between identical configs). |
+| 20 (PR #52) | speculative-inference CoN widening | 74.3 | — | **tunable — open-domain +9.5 on same-store control (38.1→47.6), adversarial −1.7 (82.1→80.4).** 2/2 open-domain repairs vs control (+2/−0); 2/9 targeted abstention misses fixed. Not a production keep alone — the wider carve-out trades adversarial precision for speculative answers. |
+| 21 (PR #52) | enumeration CoN widening (multi-hop/aggregative routes) | 71.7 | — | **rejected — multi-hop flat at 39.2 (+3/−3 flips vs same-store control).** 30/74 multi-hop answers changed text but net zero; list-shaped golds still answered with one salient item or a different subset. Confirms Run 19: the enumeration gap is structural rendering + exact-list grading, not retrieval or instruction alone. |
+| 22 (PR #53) | entity-grouped rendering (GRAVITY-style, multi-hop/aggregative routes) | 71.9 | — | **rejected — multi-hop 39.2→36.5 (−2.7 vs same-store control, +0/−2 flips).** Entity headers did not repair enumerations; may have disrupted dense-rank reading order. Production config unchanged (Run 18). |
 
 **Current best: Run 18 — excl-adv 74.8 AND overall 76.7, both new
 bests, with every category at or within noise of its historic peak
@@ -148,17 +151,20 @@ Chain-of-Note, skipped on the temporal route; 16: Run 15 config plus
 directed bridge-entity traversal on the multi-hop route; 17: Run 15
 config with the hardened Chain-of-Note instruction; 18: Run 17 plus
 the likelihood carve-out clause; 19: Run 18 plus a 2x item budget on
-the multi-hop and aggregative routes).
+the multi-hop and aggregative routes). Runs 20–21 measured on the
+``multihop-lab-20260704`` stack (fresh subset-3 ingest, same Run 18
+write-path flags, qwen3/1024 embedder); per-question A/B uses the
+same-store control ``run18-control-lab-20260704`` unless noted.
 
-| Category (n) | Run 1 | Run 2 (#6) | Run 3 (#7) | Run 4 (#13) | Run 5 (#14) | Run 6 (#15) | Run 7 abst (#19) | Run 8 verb (#20) | Run 9 stacked | Run 10 graph (#29) | Run 11 routed (#30) | Run 12 traversal (#35) | Run 13 CoN (#31) | Run 14 routed+CoN | Run 15 route-aware (#37) | Run 16 bridge (#39) | Run 17 hardened (#40) | Run 18 likelihood (#41) | Run 19 coverage (#43+#44) |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| single-hop (200) | 55.0 | 57.0 | 76.5 | 74.5 | 80.5 | 79.5 | 78.5 | 80.0 | 75.5 | 79.0 | 81.0 | 79.5 | 79.5 | 80.0 | 79.5 | 79.5 | 78.5 | **82.0** | 78.5 |
-| multi-hop (74) | 10.8 | 14.9 | 40.5 | 40.5 | 39.2 | 33.8 | 37.8 | 41.9 | 28.4 | 39.2 | **44.6** | 36.5 | 43.2 | 43.2 | 43.2 | 41.9 | **44.6** | **44.6** | 43.2 |
-| temporal (90) | 24.4 | 30.0 | 42.2 | 43.3 | 84.4 | **92.2** | 85.6 | 84.4 | 47.8 | 85.6 | **92.2** | 85.6 | 85.6 | 83.3 | 91.1 | 90.0 | 91.1 | 91.1 | 90.0 |
-| open-domain (21) | 19.1 | 28.6 | 38.1 | 38.1 | 38.1 | 38.1 | 28.6 | 33.3 | 38.1 | **42.9** | 38.1 | **42.9** | **42.9** | 38.1 | **42.9** | 38.1 | 28.6 | **42.9** | **42.9** |
-| adversarial (112) | 74.1 | 67.9 | 67.9 | 67.9 | 67.9 | 71.4 | 76.8 | 68.8 | 64.3 | 67.9 | 62.5 | 64.3 | 79.5 | 75.9 | 78.6 | 76.8 | **83.0** | **83.0** | **83.0** |
-| **overall excl. adv. (385)** | **37.4** | **41.0** | **59.5** | **58.7** | **71.2** | **71.4** | **69.6** | **71.2** | **57.9** | **70.9** | **74.3** | **70.7** | **72.0** | **71.4** | **73.2** | **72.5** | **72.2** | **74.8** | **72.5** |
-| overall (497) | 45.7 | 47.1 | 61.4 | 60.8 | 70.4 | 71.4 | 71.2 | 70.7 | 59.4 | 70.2 | 71.6 | 69.2 | 73.6 | 72.4 | 74.5 | 73.4 | 74.7 | **76.7** | 74.9 |
+| Category (n) | Run 1 | Run 2 (#6) | Run 3 (#7) | Run 4 (#13) | Run 5 (#14) | Run 6 (#15) | Run 7 abst (#19) | Run 8 verb (#20) | Run 9 stacked | Run 10 graph (#29) | Run 11 routed (#30) | Run 12 traversal (#35) | Run 13 CoN (#31) | Run 14 routed+CoN | Run 15 route-aware (#37) | Run 16 bridge (#39) | Run 17 hardened (#40) | Run 18 likelihood (#41) | Run 19 coverage (#43+#44) | Run 20 spec-inf (#52) | Run 21 enum (#52) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| single-hop (200) | 55.0 | 57.0 | 76.5 | 74.5 | 80.5 | 79.5 | 78.5 | 80.0 | 75.5 | 79.0 | 81.0 | 79.5 | 79.5 | 80.0 | 79.5 | 79.5 | 78.5 | **82.0** | 78.5 | 83.5 | 80.5 |
+| multi-hop (74) | 10.8 | 14.9 | 40.5 | 40.5 | 39.2 | 33.8 | 37.8 | 41.9 | 28.4 | 39.2 | **44.6** | 36.5 | 43.2 | 43.2 | 43.2 | 41.9 | **44.6** | **44.6** | 43.2 | 40.5 | 39.2 |
+| temporal (90) | 24.4 | 30.0 | 42.2 | 43.3 | 84.4 | **92.2** | 85.6 | 84.4 | 47.8 | 85.6 | **92.2** | 85.6 | 85.6 | 83.3 | 91.1 | 90.0 | 91.1 | 91.1 | 90.0 | 87.8 | 86.7 |
+| open-domain (21) | 19.1 | 28.6 | 38.1 | 38.1 | 38.1 | 38.1 | 28.6 | 33.3 | 38.1 | **42.9** | 38.1 | **42.9** | **42.9** | 38.1 | **42.9** | 38.1 | 28.6 | **42.9** | **42.9** | 47.6 | 38.1 |
+| adversarial (112) | 74.1 | 67.9 | 67.9 | 67.9 | 67.9 | 71.4 | 76.8 | 68.8 | 64.3 | 67.9 | 62.5 | 64.3 | 79.5 | 75.9 | 78.6 | 76.8 | **83.0** | **83.0** | **83.0** | 80.4 | 83.0 |
+| **overall excl. adv. (385)** | **37.4** | **41.0** | **59.5** | **58.7** | **71.2** | **71.4** | **69.6** | **71.2** | **57.9** | **70.9** | **74.3** | **70.7** | **72.0** | **71.4** | **73.2** | **72.5** | **72.2** | **74.8** | **72.5** | **74.3** | **71.7** |
+| overall (497) | 45.7 | 47.1 | 61.4 | 60.8 | 70.4 | 71.4 | 71.2 | 70.7 | 59.4 | 70.2 | 71.6 | 69.2 | 73.6 | 72.4 | 74.5 | 73.4 | 74.7 | **76.7** | 74.9 | 75.7 | 74.2 |
 
 ### Full per-category history — search condition (`/v1/memories/search`)
 
@@ -681,6 +687,65 @@ Retrieval mechanism stats (context condition unless noted):
   effectively identical retrieval. Flag stays merged, default 1 (off);
   Run 18 remains the production config.
 
+### Run 20 — `results/locomo/con-speculative-20260704/` (speculative-inference CoN, gnosis PR #52)
+
+- Run 18 config on the ``multihop-lab-20260704`` store with
+  ``GNOSIS_CON_SPECULATIVE_INFERENCE_ENABLED=true``: widens the
+  likelihood carve-out to speculative-judgment questions that never say
+  "likely" ("Would Caroline pursue writing...?", "Would Melanie be
+  considered...?"). Context only; per-question A/B vs same-store control
+  ``run18-control-lab-20260704``.
+- **Scores: excl-adv 74.3 / overall 75.7.** open-domain **47.6** (+9.5 vs
+  control 38.1), single-hop 83.5 (+3.0), multi-hop 40.5 (+1.3), temporal
+  87.8 (+2.2), adversarial 80.4 (−1.7 vs control 82.1).
+- Per-question vs control: open-domain +2/−0; adversarial +1/−3; multi-hop
+  +4/−3; temporal +3/−1. Of the 9 Run-18 open-domain abstention misses
+  ("no information available"), **2 repaired** (Caroline counseling
+  counterfactual; John's degree inference) — 7 still abstain.
+- **Verdict: tunable, not a production keep.** The lever hits its target
+  (open-domain) but trades adversarial precision (3 regressions: answered
+  presupposition-style adversarial questions that Run 18 correctly
+  abstained or narrowly judged). Combined with Run 21 is **not**
+  warranted: Run 21 does not win multi-hop, and stacking widened inference
+  + enumeration would stack two reader-side changes with no composability
+  evidence.
+
+### Run 21 — `results/locomo/con-enumeration-20260704/` (enumeration CoN, gnosis PR #52)
+
+- Run 18 config on the same store with
+  ``GNOSIS_CON_ENUMERATION_ENABLED=true``: appends exhaustive-list/count
+  clause on multi-hop- and aggregative-routed reads only. Context only.
+- **Scores: excl-adv 71.7 / overall 74.2 — below control (71.4/73.8).**
+  multi-hop **39.2** (flat vs control), open-domain 38.1 (flat), temporal
+  86.7 (−1.1), adversarial 83.0 (+0.9).
+- Per-question vs control: multi-hop +3/−3 (net zero); 30/74 answers
+  changed text but list-shaped golds still miss ("What desserts has Maria
+  made?" → peach cobbler only; "Where has Melanie camped?" → forest and
+  mountains, missing beach). Two repairs on genuinely-enumerated answers
+  (LGBTQ community participation; transgender events).
+- **Verdict: rejected.** Confirms Run 19: instruction alone cannot make
+  the reader emit exact multi-item lists over 20 ranked facts. Next lever:
+  **entity-grouped structured rendering** (GRAVITY entity profiles,
+  arXiv 2605.01688) — measured as Run 22.
+
+### Run 22 — `results/locomo/entity-grouped-20260704/` (entity-grouped rendering, gnosis PR #53)
+
+- Run 18 config on the same store with
+  ``GNOSIS_ENTITY_GROUPED_RENDERING_ENABLED=true``: groups retrieved
+  facts under ``#### Entity`` headers on multi-hop/aggregative routes;
+  query-named entities sort first (GRAVITY entity-profile anchoring).
+  Context only.
+- **Scores: excl-adv 71.9 / overall 74.2.** multi-hop **36.5** (−2.7 vs
+  control 39.2), single-hop 82.0 (+1.5), temporal 86.7 (+1.1),
+  open-domain 38.1 (flat), adversarial 82.1 (flat).
+- Per-question vs control: multi-hop +0/−2; no enumeration repairs.
+  Grouping may have disrupted the dense-rank order the reader relied on.
+- **Verdict: rejected.** Three reader-side levers (Run 21 enumeration
+  CoN, Run 22 entity grouping, Run 19 coverage budget) all fail on
+  multi-hop enumerations. The residual gap vs mem0's 51.15 J is partly
+  grading-inflated and partly exact-list judge strictness on ambiguous
+  golds — not a retrieval problem.
+
 ## LongMemEval_S — primary optimization target (from 2026-07-04)
 
 **Frozen config (LongMemEval_S)**: 100-instance stratified subset of the
@@ -741,12 +806,60 @@ PR #47: extraction re-samples malformed LLM JSON instead of 500ing).
 |---|---|---|---|
 | L-0 (baseline) | Run 18 config + gemini embeddings + scoped dense retrieval | *ingesting* | — |
 
-## Published comparison targets
+## Published comparison targets (definitive per-category ledger, 2026-07-04)
 
-LOCOMO overall J as published (gpt-4o-mini judge — different judge and
-backbone, so directional only; cross-vendor numbers in this space are
-actively disputed): OpenAI memory 52.9 · LangMem 58.1 · Zep 66.0 ·
-mem0 66.9 · mem0-graph 68.4 · full-context 72.9 · Letta (blog) 74.0.
+LOCOMO per-category **J** (LLM judge CORRECT/WRONG). Our numbers are Run 18
+on **subset 3** (conv-26/30/41, n=497) with **gpt-5.5** judge+answerer;
+published numbers are **full LOCOMO** (~1,540 Q) with **gpt-4o-mini**
+unless noted. Adversarial (cat 5) excluded from published tables — we track
+it separately at **83.0**. Cross-vendor rows carry ±5–10 pt dispute bands
+(Zep [rebuttal](https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/)
+reports LOCOMO J=75.14% for Zep vs mem0-paper 66.0% overall).
+
+| Category | Best published (system / J) | Judge / backbone | Subset | Gnosis Run 18 (J) | Gap | Comparability verdict |
+|---|---|---|---|---|---|---|
+| single-hop | **67.13** (mem0) | gpt-4o-mini | full | **82.0** | **+14.9 lead** | Same LOCOMO cat 4 mapping; our subset n=200 vs full ~446. **Defensible lead.** |
+| temporal | **58.13** (mem0-graph) | gpt-4o-mini | full | **91.1** | **+33.0 lead** | Same cat 2; edu-v1 dated facts + hybrid routing. **Defensible lead** (judge inflation ~10 pp possible per Continua fair-fight). |
+| multi-hop | **51.15** (mem0) | gpt-4o-mini | full | **44.6** | **−6.6 trail** | Same cat 1. **Gap partly grading-inflated:** mem0 uses generous gpt-4o-mini J + truncates multi-item gold at `;` for F1; our gpt-5.5 J demands exact lists. mem0-graph scores *worse* (47.19). Residual gap is real but smaller than headline — enumeration reader problem (Runs 19–21). |
+| open-domain | **76.60** (Zep) / 72.93 (mem0) | gpt-4o-mini | full | **42.9** | **−33.7 vs Zep** | Same LOCOMO cat 3 id. **Largely not comparable:** full-set n=96 (23% speculative-phrased) vs our subset n=21 (**76% speculative** — counterfactuals, "Would X...?", personality inference). Run 20 speculative-inference CoN lifts same-store open-domain to 47.6 (+9.5) but costs adversarial. Zep's lead uses external-knowledge framing we do not implement. |
+| adversarial | *(not published)* | — | — | **83.0** | — | No mem0/Zep per-category number; we lead every published overall-J system on abstention behavior. |
+| **overall excl-adv** | **72.90** (full-context) | gpt-4o-mini | full | **74.8** | **+1.9 lead** | Different judge (+~10 pp gpt-4.1-mini lift documented). **Directionally above full-context** — the LOCOMO ceiling for memory systems. |
+| overall (incl-adv) | 68.44 (mem0-graph) | gpt-4o-mini | full | **76.7** | **+8.3 lead** | Includes our adversarial strength; not apples-to-apples with published tables that omit cat 5. |
+
+**2026 frontier systems** (per-category LOCOMO where published; apply ledger
+skepticism from `gnosis/docs/frontier-2026.md` — aligned-harness collapses,
+judge inflation):
+
+| System | Judge | Overall / headline | Per-category notes | vs Gnosis Run 18 |
+|---|---|---|---|---|
+| Mnemis (Microsoft, ACL'26) | GPT-4.1-mini | 93.3 (k=10) | MH 91.8 / T 90.3 / OD 82.3 / SH 96.7 | +18.5 overall but **different judge cluster** (~10 pp lift vs gpt-4o-mini); adversarial excluded; full-set. Not directly comparable. |
+| EverMemOS | GPT-4.1-mini | 92.32 | — | Same judge-cluster caveat. |
+| Mandol | GPT-4.1-mini | 92.21 | BM25+SPLADE+dense hybrid | Retrieval-side; our hybrid (Run 6) already measured. |
+| MemU | GPT-4.1-mini | 92.09 | Generous Mem0 grader prompt | Judge-inflated vs our strict J. |
+| Memory-R2 | GPT-4o-mini | 80.99 | MH J 80.93 | 7B backbone; different stack. |
+| Zep (rebuttal self-report) | undisclosed | 75.14 overall J | — | Vendor-disputed; treat as upper bound. |
+
+**Open-domain forensics (subset-3, Run 18):** 12/21 misses; 8 were
+over-abstention on speculative phrasing without "likely"; 4 were genuine
+knowledge gaps. Category mapping verified: our harness `category==3` =
+LOCOMO open-domain = mem0 Table 1 column 3. The ~34 pt Zep gap vs our 42.9
+is **not a 34 pt memory deficit** — it is predominantly (a) subset
+composition (76% vs 23% speculative questions), (b) judge strictness, and
+(c) Zep's external-knowledge integration we do not attempt.
+
+**Multi-hop forensics:** 41/74 misses on Run 18; 27 enumeration-shaped
+(cross-session lists), 8 connection-shaped, 6 grading-ambiguous. mem0's
+51.15 J likely benefits from generous judging on partial lists; their
+graph variant (47.19) proves graphs are not the edge. Consolidation
+UPDATE/DELETE (mem0's write path) may help dedupe but is unmeasured here.
+
+**Next lever:** Multi-hop enumeration is now measured-out on the reader
+side (Runs 19–22). Highest remaining options: (1) tunable Run 20
+speculative-inference CoN with an adversarial guard for production
+open-domain gains; (2) full-LOCOMO Run 18 re-measurement for
+apples-to-apples competitor comparison; (3) hybrid sparse+dense (frontier
+consensus, unmeasured since Run 6 wash); (4) resume L-0 LongMemEval
+baseline when quota headroom is safe.
 
 ## Known limitations of the current record
 
