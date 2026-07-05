@@ -4,11 +4,12 @@ Status: proposed (implementation-ready) · Owner: gnosis · Date: 2026-07-02
 
 ## 1. Why this is the lever
 
-gnosis currently ingests **verbatim turns with zero LLM extraction**: every
+As of this spec's date (2026-07-02), gnosis ingests **verbatim turns with zero
+LLM extraction**: every
 `/v1/memories` add with `messages` + `infer=true` writes one `said_user` /
 `said_assistant` `Fact` per message (`backend.py::_add_turn_memories`,
 `add_message`), embeds it, and that is the entire write-side intelligence.
-On the frozen LOCOMO subset-3 config this scores **59.5 J (context) / 61.3 J
+On the frozen LOCOMO subset-3 config this scored **59.5 J (context) / 61.3 J
 (search)** excl. adversarial — a dated-RAG store. Every published leader
 distills at ingest:
 
@@ -347,6 +348,11 @@ Latency: ~2–5s per call at gpt-5.5. Implications per `GNOSIS_WRITE_MODE`:
 
 ## 8. Benchmark plan (membench)
 
+> **What actually shipped (post-hoc note):** this landed as **Run 5** (gnosis
+> PR #14), not Run 4. Run 4 became the recall-filter ablation (gnosis PR #13,
+> which did not reproduce). The "Run 4" references below are the original
+> 2026-07-02 prediction — see RESULTS.md for the as-run record.
+
 This is a **write-path** change: unlike PRs #6/#7, it **requires
 re-ingest** into a fresh Neo4j.
 
@@ -394,7 +400,7 @@ worker), `GNOSIS_WRITE_MODE`. Surface all three in `diagnostics()` like the
 existing extraction flags. `infer=false` verbatim adds are never extracted.
 
 Rollout: (1) land behind the flag, default off — zero behavior change;
-(2) membench Run 4 in the benchmark stack with the flag on and
+(2) membench Run 4 (shipped as Run 5 — see §8 note) in the benchmark stack with the flag on and
 `GNOSIS_FACT_EXTRACTION_MODEL=openai/gpt-5.5`; (3) if the measured gain
 holds, enable for the hermes/Discord deployment once the async extraction
 worker (v1.1) removes the request-path latency; (4) backfill option:

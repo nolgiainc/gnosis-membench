@@ -879,7 +879,8 @@ deviations**:
 - **Embeddings: `gemini-embedding-001` at 3072 dims** (vs the LOCOMO
   gate's local qwen3/1024) — see the embedder note at the top.
 - **`GNOSIS_SCOPED_DENSE_RETRIEVAL_ENABLED=true`** (gnosis PR #46,
-  pool 10,000): LongMemEval instances share haystack sessions, so the
+  `GNOSIS_DENSE_SCOPE_POOL=10000`): LongMemEval instances share haystack
+  sessions, so the
   100 instances live as ~100 users in one store whose fact vectors are
   near-duplicates across users. The SDK's dense path ranks the vector
   index *globally* and scope-filters afterwards, so with ~100 users'
@@ -888,7 +889,9 @@ deviations**:
   vector query to the request scope in-query. This is a correctness
   requirement for multi-user single-store benchmarking, not an
   optimization; single-user LOCOMO is unaffected (flag-off path is
-  byte-identical).
+  byte-identical). **Reproducibility:** the committed stack defaults to
+  `GNOSIS_DENSE_SCOPE_POOL=4000` (`stack/compose.yaml`); this frozen config
+  requires overriding it to `10000` (e.g. in `stack/.env`).
 
 Ingest protocol: one gnosis `user_id` per instance
 (`longmemeval_s:<question_id>`), one gnosis session per haystack
@@ -942,11 +945,11 @@ reports LOCOMO J=75.14% for Zep vs mem0-paper 66.0% overall).
 | multi-hop | **51.15** (mem0) | gpt-4o-mini | full | **44.6** | **−6.6 trail** | Same cat 1. **Gap partly grading-inflated:** mem0 uses generous gpt-4o-mini J + truncates multi-item gold at `;` for F1; our gpt-5.5 J demands exact lists. mem0-graph scores *worse* (47.19). Residual gap is real but smaller than headline — enumeration reader problem (Runs 19–21). |
 | open-domain | **76.60** (Zep) / 72.93 (mem0) | gpt-4o-mini | full | **42.9** | **−33.7 vs Zep** | Same LOCOMO cat 3 id. **Largely not comparable:** full-set n=96 (23% speculative-phrased) vs our subset n=21 (**76% speculative** — counterfactuals, "Would X...?", personality inference). Run 20 speculative-inference CoN lifts same-store open-domain to 47.6 (+9.5) but costs adversarial. Zep's lead uses external-knowledge framing we do not implement. |
 | adversarial | *(not published)* | — | — | **83.0** | — | No mem0/Zep per-category number; we lead every published overall-J system on abstention behavior. |
-| **overall excl-adv** | **72.90** (full-context) | gpt-4o-mini | full | **74.8** | **+1.9 lead** | Different judge (+~10 pp gpt-4.1-mini lift documented). **Directionally above full-context** — the LOCOMO ceiling for memory systems. |
-| overall (incl-adv) | 68.44 (mem0-graph) | gpt-4o-mini | full | **76.7** | **+8.3 lead** | Includes our adversarial strength; not apples-to-apples with published tables that omit cat 5. |
+| **overall excl-adv** | **72.90** (full-context) | gpt-4o-mini | full | **74.8** | **+1.9 lead** | Different judge (+~10 pp gpt-4.1-mini lift documented). **Directionally above full-context** — the LOCOMO ceiling for memory systems. **⚠️ Superseded — see Run 23 above; subset-3 outlier. Full-n excl-adv is 66.9–68.9, parity with mem0 and below the 72.90 ceiling.** |
+| overall (incl-adv) | 68.44 (mem0-graph) | gpt-4o-mini | full | **76.7** | **+8.3 lead** | Includes our adversarial strength; not apples-to-apples with published tables that omit cat 5. **⚠️ Superseded — see Run 23 above; subset-3 outlier.** |
 
 **2026 frontier systems** (per-category LOCOMO where published; apply ledger
-skepticism from `gnosis/docs/frontier-2026.md` — aligned-harness collapses,
+skepticism from `docs/frontier-2026.md` — aligned-harness collapses,
 judge inflation):
 
 | System | Judge | Overall / headline | Per-category notes | vs Gnosis Run 18 |

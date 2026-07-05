@@ -1,5 +1,5 @@
 # Full local stack for benchmarking gnosis:
-#   - neo4j 5.28 (graph store gnosis expects)
+#   - neo4j 5.26 (graph store gnosis expects)
 #   - gnosis, built from the sibling gnosis repo's Dockerfile
 #
 # gnosis needs an OpenAI-compatible LLM + embedding endpoint. Options:

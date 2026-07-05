@@ -31,7 +31,7 @@ frozen dev-loop regression gate** (noise-saturated at the subset level — the
 the **full-LOCOMO, same-n competitor comparison is Run 23**, see the
 saturation note and Run 23 in [RESULTS.md](RESULTS.md)) and **LongMemEval_S is the
 primary optimization target**, run on a frozen 100-instance stratified
-subset (question ids in `membench/data/longmemeval_s_subset100.txt`,
+subset (question ids in `data/longmemeval_s_subset100.txt`,
 regenerated deterministically by `membench/scripts/make_lme_subset100.py`)
 with `gemini-embedding-001` (3072-dim) embeddings, gpt-5.5 extraction, and
 the official judge prompts on a frozen gpt-5.5 judge. Both frozen configs
@@ -40,7 +40,7 @@ are specified precisely in [RESULTS.md](RESULTS.md).
 ## How it works
 
 ```
-benchmark JSON ──ingest──▶ gnosis (/v1/memories, infer=true, turn by turn)
+benchmark JSON ──ingest──▶ gnosis (/v1/memories, infer=true, per turn-pair)
 question ───────retrieve─▶ gnosis (/v1/memory/context  OR  /v1/memories/search)
 retrieved text ─answer───▶ LLM (sees ONLY the retrieved memory, never the raw history)
 hypothesis ─────grade────▶ official scorer (LLM judge / F1 / BLEU-1)
@@ -48,7 +48,7 @@ hypothesis ─────grade────▶ official scorer (LLM judge / F1 /
 ```
 
 - One gnosis `user_id` per benchmark conversation, one `session_id` per
-  benchmark session, one extraction-mode add per turn.
+  benchmark session, one extraction-mode add per user+assistant turn-pair.
 - Haystack session dates go into the add `metadata` (`session_date`);
   gnosis has no ingest-time timestamp override, so `--inline-dates` can
   additionally prefix turn text with the session date (helps
