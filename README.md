@@ -210,6 +210,14 @@ full-context** on `longmemeval_s` — treat ~0.87 as the retrieval ceiling.
 | OpenAI memory | 34.30 / 23.72 / 63.79 | 20.09 / 15.42 / 42.92 | 14.04 / 11.25 / 21.71 | 39.31 / 31.16 / 62.29 | 52.90% |
 | A-Mem (mem0 rerun) | 20.76 / 14.90 / 39.79 | 9.22 / 8.81 / 18.85 | 35.40 / 31.08 / 49.91 | 33.34 / 27.58 / 54.05 | 48.38% |
 | **Full-context baseline** | — | — | — | — | **72.90%** |
+| **Gnosis Run 18** (subset 3, gpt-5.5 J) | **82.0** | **44.6** | **91.1** | **42.9** | **74.8%** excl-adv / **76.7%** overall |
+
+Run 18 **leads** single-hop (+15 vs mem0), temporal (+33 vs mem0-graph),
+and overall excl-adv (+2 vs full-context, different judge). **Trails**
+multi-hop (−6.6 vs mem0 — partly grading-inflated; see RESULTS.md) and
+open-domain (−34 vs Zep — largely subset-composition artifact: our n=21 is
+76% speculative-phrased vs 23% on full LOCOMO). Adversarial **83.0** —
+not published by mem0/Zep; we lead on abstention behavior.
 
 Letta's own blog run ([source](https://www.letta.com/blog/benchmarking-ai-agent-memory/))
 reports **74.0%** on LOCOMO for a Letta filesystem agent (gpt-4o-mini). A-Mem's
