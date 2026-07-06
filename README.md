@@ -113,7 +113,7 @@ Key environment variables (see `membench/src/membench/config.py`):
 `GNOSIS_BASE_URL`, `GNOSIS_TOKEN`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
 `MEMBENCH_ANSWER_MODEL`, `MEMBENCH_JUDGE_MODEL`, `MEMBENCH_MAX_ITEMS`
 (retrieval depth, default 20), `MEMBENCH_TENANT_ID` (must match gnosis's
-`GNOSIS_TENANT_ID`, default `bromigos`), `MEMBENCH_INCLUDE_GRAPH`,
+`GNOSIS_TENANT_ID`, default `nolgia`), `MEMBENCH_INCLUDE_GRAPH`,
 `MEMBENCH_CONCURRENCY`.
 
 ### Answer/grade concurrency

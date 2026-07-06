@@ -26,7 +26,7 @@ def cfg(tmp_path):
     return Config(
         gnosis_base_url="http://gnosis.test",
         gnosis_token="test-token",
-        tenant_id="bromigos",
+        tenant_id="nolgia",
         space_id="membench",
         agent_id="membench",
         openai_base_url="http://llm.test/v1",
