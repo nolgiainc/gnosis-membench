@@ -22,7 +22,7 @@ durable summary.
 **Frozen config (LOCOMO — regression gate)**: LOCOMO subset 3 (conv-26,
 conv-30, conv-41), 1,451 turns
 ingested, 497 questions; retrieval depth `max_items`/`limit` = 20; answering
-and judging on GPT-5.5 via homelab LiteLLM at judge temperature = provider
+and judging on GPT-5.5 via self-hosted LiteLLM at judge temperature = provider
 default (gpt-5.5 hard-rejects the `temperature` param — deviation from the
 official protocol, constant across all runs); LOCOMO adversarial rows scored
 by the official substring rule; headline J excludes adversarial (matches the
@@ -31,7 +31,7 @@ mem0 paper's convention). gnosis embeddings: `local-qwen3-embedding-0.6b`
 
 **Embedder note (2026-07-04)**: the LongMemEval_S campaign (new primary
 target) switches gnosis to cloud embeddings — `gemini-embedding-001`
-(3072-dim, via the homelab LiteLLM; homelab PR #14 exposed the route).
+(3072-dim, via the self-hosted LiteLLM).
 Chosen over `text-embedding-3-small`/`-large` because it outranks both on
 MTEB retrieval and the goal is highest scores, not published-system
 comparability; verified live through gnosis's config path (3072-dim Fact
@@ -275,7 +275,7 @@ Retrieval mechanism stats (context condition unless noted):
   `GNOSIS_RECALL_FILTER_ENABLED`, candidates cap 30). Same ingested data
   reused (read-path-only change). Deviations from the frozen config:
   `GNOSIS_RECALL_FILTER_ENABLED=true` (the feature under test) and gnosis-side
-  `GNOSIS_LLM=openai/gpt-5.5` via the homelab LiteLLM (matches production; the
+  `GNOSIS_LLM=openai/gpt-5.5` via the self-hosted LiteLLM (matches production; the
   filter needs a real model — reads make no other `GNOSIS_LLM` calls, so this
   only powers the filter). A logging-only compose overlay
   (`stack/compose.recall-logging.yaml`) surfaced the filter's structured log
@@ -786,7 +786,7 @@ the **exact Run 18 production config** on all 10 conversations (1,986 Q
   verbatim-only degradation). Read fidelity confirmed: 4,965 avg
   context chars ≈ Run 18's 4,932; 24% "no information" ≈ Run 18's 24.7%.
 - **Two judges** (bounds judge variance; gpt-4o-mini — mem0's judge —
-  is not routable on the homelab stack): gpt-5.5 (frozen judge) and
+  is not routable on the self-hosted stack): gpt-5.5 (frozen judge) and
   gpt-5.4-mini (`results/locomo/full-locomo-run18-judge54mini-20260704/`).
   F1/BLEU-1 (official snap-research scorer, judge-independent) is the
   model-independent anchor.
@@ -995,7 +995,7 @@ baseline when quota headroom is safe.
 - Runs 1-4 ingest verbatim (no LLM extraction); Run 5 onward ingests with
   edu-v1 fact extraction.
 - Weekly regression runs (subset 2, this same frozen judge) execute in-cluster
-  via the homelab `membench` CronJob and upload to RustFS `membench/results/`.
+  via the scheduled `membench` CronJob and upload to RustFS `membench/results/`.
 
 ## Research sources behind the measured changes
 

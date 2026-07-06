@@ -26,7 +26,7 @@ def test_ingest_writes_one_extraction_add_per_turn_pair(
         },
     ]
     scope = first["scope"]
-    assert scope["tenant_id"] == "bromigos"
+    assert scope["tenant_id"] == "nolgia"
     assert scope["user_id"] == "longmemeval_s:mini_1"
     assert scope["session_id"] == "longmemeval_s:mini_1:s1"
     assert scope["visibility"] == "private_user"

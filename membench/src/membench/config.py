@@ -25,7 +25,7 @@ class Config:
         default_factory=lambda: _env("GNOSIS_BASE_URL", "http://localhost:8080")
     )
     gnosis_token: str = field(default_factory=lambda: _env("GNOSIS_TOKEN", "membench-token"))
-    tenant_id: str = field(default_factory=lambda: _env("MEMBENCH_TENANT_ID", "bromigos"))
+    tenant_id: str = field(default_factory=lambda: _env("MEMBENCH_TENANT_ID", "nolgia"))
     space_id: str = field(default_factory=lambda: _env("MEMBENCH_SPACE_ID", "membench"))
     agent_id: str = field(default_factory=lambda: _env("MEMBENCH_AGENT_ID", "membench"))
 

@@ -319,7 +319,7 @@ Graphiti's four-plus):
 | **Per call** | **~2.2k in / ~0.3k out** |
 
 LOCOMO subset 3 (1,451 turns → ~726 turn-pair calls): **~1.6M input /
-~0.25M output tokens** total. Via the homelab LiteLLM gpt-5.5 route this
+~0.25M output tokens** total. Via the self-hosted LiteLLM gpt-5.5 route this
 is quota/wall-clock bound rather than metered; if routed to a metered
 endpoint, at typical frontier-mini list prices this is single-digit
 dollars per full subset ingest. Expected unit volume: EMem produced ~20
