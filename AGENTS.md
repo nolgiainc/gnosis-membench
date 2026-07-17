@@ -112,6 +112,38 @@ uv run membench run \
 
 ---
 
+## NVIDIA inference gateway (primary endpoint)
+
+All models route through `https://inference-api.nvidia.com/v1` — an OpenAI-compatible
+LiteLLM proxy covering 224 models across AWS Bedrock, GCP Vertex, Azure OpenAI,
+OpenAI direct, and NVIDIA NIM. Auth: `Authorization: Bearer $INFERENCE_API_KEY`
+(set in `~/.dotfiles/zsh/.config/zsh/zsh-secrets`).
+
+**Tested model selections (2026-07-17):**
+
+| Role | Model | Notes |
+|---|---|---|
+| gnosis LLM | `openai/openai/gpt-5.4-mini` | extraction, routing, CoN |
+| gnosis embed | `nvidia/nvidia/llama-embed-nemotron-8b` | 4096 dims, batching OK |
+| embed alt | `gcp/google/gemini-embedding-2` | 3072 dims, upgrade from -001 |
+| reader (competitive) | `openai/openai/gpt-5.4` | comparable to gpt-4o baselines |
+| reader (fast iter) | `openai/openai/gpt-5.4-nano` | cheapest working reader |
+| reader (Claude) | `aws/anthropic/claude-haiku-4-5-v1` | fast, via AWS Bedrock |
+| judge | `openai/openai/gpt-5.4` | stable, comparable to leaderboard |
+| judge (strong) | `aws/anthropic/bedrock-claude-sonnet-5` | Claude-native judging |
+| community/rewrite LLM | `nvidia/qwen/qwen3-32b` | on-prem NVIDIA, no egress cost |
+
+Quick environment setup for a benchmark run:
+```bash
+source ~/.dotfiles/zsh/.config/zsh/zsh-secrets
+export OPENAI_BASE_URL=https://inference-api.nvidia.com/v1
+export OPENAI_API_KEY=$INFERENCE_API_KEY
+export MEMBENCH_ANSWER_MODEL=openai/openai/gpt-5.4
+export MEMBENCH_JUDGE_MODEL=openai/openai/gpt-5.4
+```
+
+---
+
 ## Model configuration
 
 Set via environment variables (or `stack/.env` for gnosis internals):
