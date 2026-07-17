@@ -124,7 +124,7 @@ OpenAI direct, and NVIDIA NIM. Auth: `Authorization: Bearer $INFERENCE_API_KEY`
 | Role | Model | Notes |
 |---|---|---|
 | gnosis LLM | `openai/openai/gpt-5.4-mini` | extraction, routing, CoN |
-| gnosis embed | `nvidia/nvidia/llama-embed-nemotron-8b` | 4096 dims, batching OK |
+| gnosis embed | `openai/nvidia/llama-embed-nemotron-8b` | 4096 dims — prefix "openai/" required for LiteLLM gateway routing |
 | embed alt | `gcp/google/gemini-embedding-2` | 3072 dims, upgrade from -001 |
 | reader (competitive) | `openai/openai/gpt-5.4` | comparable to gpt-4o baselines |
 | reader (fast iter) | `openai/openai/gpt-5.4-nano` | cheapest working reader |
