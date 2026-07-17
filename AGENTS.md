@@ -78,7 +78,7 @@ uv run membench run \
 
 Required stack `.env` additions for LME_S:
 ```dotenv
-GNOSIS_EMBEDDING=gemini-embedding-001
+GNOSIS_EMBEDDING=openai/azure/openai/text-embedding-3-large
 GNOSIS_EMBEDDING_DIMENSIONS=3072
 GNOSIS_SCOPED_DENSE_RETRIEVAL_ENABLED=true
 GNOSIS_DENSE_SCOPE_POOL=10000
@@ -123,14 +123,14 @@ OpenAI direct, and NVIDIA NIM. Auth: `Authorization: Bearer $INFERENCE_API_KEY`
 
 | Role | Model | Notes |
 |---|---|---|
-| gnosis LLM | `openai/openai/gpt-5.4-mini` | extraction, routing, CoN |
-| gnosis embed | `openai/nvidia/llama-embed-nemotron-8b` | 4096 dims — prefix "openai/" required for LiteLLM gateway routing |
-| embed alt | `gcp/google/gemini-embedding-2` | 3072 dims, upgrade from -001 |
-| reader (competitive) | `openai/openai/gpt-5.4` | comparable to gpt-4o baselines |
-| reader (fast iter) | `openai/openai/gpt-5.4-nano` | cheapest working reader |
+| gnosis LLM | `openai/azure/openai/gpt-4o-mini` | extraction, routing, CoN — verified working 2026-07-17 |
+| gnosis embed | `openai/azure/openai/text-embedding-3-large` | 3072 dims — verified working 2026-07-17; `openai/` prefix routes via OPENAI_BASE_URL |
+| embed alt | `openai/azure/openai/text-embedding-3-large` | 3072 dims, matches LME_S frozen config |
+| reader (competitive) | `azure/openai/gpt-4o` | comparable to published LME_S baselines — verified 2026-07-17 |
+| reader (fast iter) | `azure/openai/gpt-4o-mini` | cheap reader for iteration |
 | reader (Claude) | `aws/anthropic/claude-haiku-4-5-v1` | fast, via AWS Bedrock |
-| judge | `openai/openai/gpt-5.4` | stable, comparable to leaderboard |
-| judge (strong) | `aws/anthropic/bedrock-claude-sonnet-5` | Claude-native judging |
+| judge | `azure/openai/gpt-4o` | stable, comparable to leaderboard — verified 2026-07-17 |
+| judge (alt) | `aws/anthropic/claude-haiku-4-5-v1` | Claude-native judging — verified 2026-07-17 |
 | community/rewrite LLM | `nvidia/qwen/qwen3-32b` | on-prem NVIDIA, no egress cost |
 
 Quick environment setup for a benchmark run:
@@ -138,8 +138,8 @@ Quick environment setup for a benchmark run:
 source ~/.dotfiles/zsh/.config/zsh/zsh-secrets
 export OPENAI_BASE_URL=https://inference-api.nvidia.com/v1
 export OPENAI_API_KEY=$INFERENCE_API_KEY
-export MEMBENCH_ANSWER_MODEL=openai/openai/gpt-5.4
-export MEMBENCH_JUDGE_MODEL=openai/openai/gpt-5.4
+export MEMBENCH_ANSWER_MODEL=azure/openai/gpt-4o
+export MEMBENCH_JUDGE_MODEL=azure/openai/gpt-4o
 ```
 
 ---
