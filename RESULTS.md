@@ -912,9 +912,38 @@ claims. The smoke run also flushed out and fixed three pipeline bugs
 (membench PRs #13/#14: add retries + transport-error retries; gnosis
 PR #47: extraction re-samples malformed LLM JSON instead of 500ing).
 
+### LongMemEval_S leaderboard context (2026-07-17)
+
+Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
+
+| Rank | System | Overall | KU | Multi-Session | Temporal | Source |
+|---|---|---|---|---|---|---|
+| 1 | JordanMcCann agentmemory | **96.2%** | — | — | — | GitHub, seed=42, reproducible |
+| 2 | Chronos High (PwC) | **95.60%** | **100%** | 88.7% | 95.5% | arXiv:2603.16862, Claude Opus 4.6 |
+| 3 | Mastra OM (gpt-5-mini) | **94.87%** | 96.2% | — | — | mastra.ai/research/observational-memory |
+| 4 | Chronos Low | **92.60%** | 96.15% | 91.7% | 90.2% | arXiv:2603.16862, GPT-4o |
+| 5 | Oracle (full-context) | **82.4%** | — | — | — | LME paper |
+| 6 | Zep | **71.2%** | 83.3% | 57.9% | 62.4% | arXiv:2501.13956 |
+| — | gnosis L-0 | *pending* | — | — | — | Run 18 + gemini/3072 + scoped dense |
+
+**Gnosis gap analysis (before L-0 result):**
+- Knowledge-update: smoke test confirmed near-0% (superseded value returned). Gap ~96 pp vs SOTA.
+- Temporal-reasoning: expected to be strong given LOCOMO temporal J 73.8. Should transfer.
+- Abstention: CoN instruction should help; abstention result partially known from LOCOMO adversarial (83.9).
+- Multi-session: unknown; dependent on cross-session fact retrieval quality.
+- Open-domain / preference: expected weakness given LOCOMO open-domain 29.2 J.
+
+**Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
+- Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
+- JordanMcCann 96.2% uses six parallel retrieval signals including BM25 (weight 0.12) and spreading activation (weight 0.18) + cross-encoder reranker.
+- Community subgraph (Zep pattern) is the primary mechanism explaining the open-domain gap.
+- "Is Grep All You Need?" (arXiv:2605.15184) confirms BM25 outperforms vectors on LME for every model pair.
+
 | Run | Change under test | Overall | Verdict |
 |---|---|---|---|
-| L-0 (baseline) | Run 18 config + gemini embeddings + scoped dense retrieval | *ingesting* | — |
+| L-0 (baseline) | Run 18 config + gemini embeddings + scoped dense retrieval | *pending* | — |
+| L-1 (planned) | + LLM reranker (run24.yaml) | pending | next: retrieval bottleneck |
+| L-2 (planned) | + community graph + multi-query rewrite (run25.yaml) | pending | open-domain + multi-hop |
 
 ## Published comparison targets (per-category ledger)
 
