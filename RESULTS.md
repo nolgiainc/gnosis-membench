@@ -924,7 +924,7 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 | 4 | Chronos Low | **92.60%** | 96.15% | 91.7% | 90.2% | arXiv:2603.16862, GPT-4o |
 | 5 | Oracle (full-context) | **82.4%** | — | — | — | LME paper |
 | 6 | Zep | **71.2%** | 83.3% | 57.9% | 62.4% | arXiv:2501.13956 |
-| — | gnosis L-0 | **76.0%** | 74.3% | 84.2% | 72.7% | Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
+| — | gnosis L-0 | **76.0%** | 72.7% | 72.2% | 84.2% | Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -957,8 +957,51 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 | L-3 | answer-only on L-2 data: L-0 base + read_supersession + global hybrid BM25 | **67.0%** | done 2026-07-20; **confounded run** — global hybrid on all routes hurt SSU (-10pp), SSA (-12.5pp), KU (-9.1pp). Temporal drop (−21pp vs L-0) attributed to: answer-only on L-2 ingest (different extraction run) + global hybrid noise. Positive: abstention +10pp (removing community/rewrite noise). Global hybrid reverted after this run. L-4 planned as fresh ingest with L-0 base + supersession only. |
 | A-sup-only | **INVALID** answer-only on L-2 data: supersession=on, reranker=off — 100% of 100 answers identical to L-2; supersession changes retrieval size but does not flip any answers on L-2 ingest data. 73.0% score is pure judge re-grade variance (9/100 flips); not a supersession signal. Fresh ingest required. | — |
 | A-rerank-only | **INVALID** answer-only on L-2 data: reranker=on (route-aware), supersession=off — 100% of 100 answers identical to L-2; LLM reranker changes ordering but LLM answers are LLM-stable on this data. 73.0% is judge variance. Fresh ingest required. | — |
-| L-4 | **fresh ingest**: L-0 base + supersession=on + route-aware reranker (skip temporal+unanswerable_risk), Stack B port 8081 | TBD | running ingest 2026-07-20; clean ablation of combined config |
-| L-4c | **fresh ingest ablation**: L-0 base + supersession=on only (reranker=off), Stack C port 8082 | TBD | running ingest 2026-07-20; isolates supersession contribution |
+| L-4 | **fresh ingest** 2×2 cell (sup=T,rer=T): L-0 base + supersession + route-aware reranker (skip temporal+unanswerable_risk), Stack B port 8081 | TBD | running ingest 2026-07-20 |
+| L-4c | **fresh ingest ablation** (sup=T,rer=F): supersession only, Stack C port 8082 | TBD | running ingest 2026-07-20; isolates supersession contribution |
+| L-4d | **fresh ingest ablation** (sup=F,rer=T): route-aware reranker only (no supersession), Stack D port 8083 | TBD | running ingest 2026-07-20; isolates reranker contribution |
+| L-5 | **fresh ingest** L-4 base + `COVERAGE_BUDGET_MULTIPLIER=2` + `CON_ENUMERATION=true`, Stack E port 8084 | TBD | planned after 2×2 confirms direction; targets art-events retrieval gap (aggregative gets 40 facts vs 20) |
+
+### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
+
+Per-question root causes of the 24 L-0 failures (76/100 correct):
+
+**Knowledge-Update (4 failures, 72.7% accuracy):**
+- `852ce960` (mortgage pre-approval): model found old $350k fact; gold $400k. Supersession picks newest → **expected fix in L-4c/L-4**.
+- `1cea1afa` (Instagram followers): model found 600 followers (correct) + old 500 + growth rate, then *extrapolated* to ~624. Supersession removes stale counts → model stays at 600. **Expected fix in L-4c/L-4**.
+- `69fee5aa` (pre-1920 coins): model found 37; gold 38. Off-by-one from outdated count. Supersession picks newest → **expected fix in L-4c/L-4**.
+- `031748ae_abs` (SWE Manager headcount): abstention failure — model found a 4-engineer fact from a different role. Role title semantic mismatch, hard to fix.
+
+**Multi-Session (9 failures, 72.2% accuracy). Root causes differ sharply by question:**
+- `b5ef892d` (camping days=8): model invented 3 extra trips (hallucinated from loosely-related Yosemite/mountains context), answered 18 days. Reranker should filter non-camping facts → **expected partial fix in L-4d/L-4**.
+- `2318644b` (Hawaii vs Tokyo cost diff=$270): model found Hawaii "$300+" but the exact price is $334. Used the vague bound, not the precise value. Precision gap, hard to fix.
+- `2ce6a0f2` (art events past month=4): model found 3 events; 4th event is at rank >20 in dense retrieval. `COVERAGE_BUDGET_MULTIPLIER=2` would retrieve 40 facts → **expected fix in L-5**.
+- `gpt4_d12ceb0e` (average family age=59.6): model missing user's own age fact. Extraction or retrieval gap, hard to fix without confirmation.
+- `92a0aa75` (work duration): role confusion — company tenure (2y3m) vs current role (1y5m); supersession might surface the newer role fact. **Possible fix in L-4c/L-4**.
+- `88432d0a_abs`, `gpt4_372c3eed_abs`, `a96c20ee_abs`, `09ba9854_abs`: 4 abstention failures where model answered when it should have abstained (said "zero times", hallucinated education timeline, fabricated university poster, answered partial taxi info). Router doesn't classify these as `unanswerable_risk`. Hard to fix without sufficiency check.
+
+**Temporal-Reasoning (4 failures, 84.2% accuracy):**
+- `gpt4_b0863698` (charity run days ago=7): model found March 12 event, used wrong event for calculation (got 14 days); the March 19 event (correct) is at rank >20. Budget multiplier for temporal could help, but temporal route doesn't benefit from the current `COVERAGE_BUDGET_MULTIPLIER` setting.
+- `gpt4_1e4a8aec` (gardening 2 weeks ago=tomato saplings): model retrieved gardening workshop (older event) rather than tomato planting (right event). Date-aware retrieval would fix; hard with current design.
+- `gpt4_8279ba03` (kitchen appliance 10 days ago=smoker): exact appliance not surfaced or not identified.
+- `c8090214_abs`: abstention — question asks about iPad but user has iPhone. Presupposition error. Model answered instead of detecting the discrepancy.
+
+**Single-Session-User (3 failures, 70.0% accuracy):**
+- `6ade9755` (yoga studio=Serenity Yoga): fact embedded under brunch context, ranks below top-20. Reranker may surface it from the 50-candidate pool. **Expected fix in L-4d/L-4**.
+- `66f24dbb` (sister gift=yellow dress): model correctly found yellow dress + earrings but judge expected only yellow dress. Borderline benchmark annotation issue.
+- `6b168ec8` (bikes=3): model found conflicting facts (May 27: 3 bikes; May 29: 2 bikes, 1 in repair shop) and abstained. Reranker should pick the comprehensive May 27 ownership statement. **Expected fix in L-4d/L-4**.
+
+**Single-Session-Preference (2 failures, 50.0% accuracy):** Response format issues — model retrieved preference facts correctly but gave direct recommendations instead of preference-aware responses. Not a retrieval problem; hard to fix without prompt changes.
+
+**Single-Session-Assistant (2 failures, 75.0% accuracy):**
+- `1568498a` (chess move=28.Kg3): model found wrong move (27.Kg2). Reranker may surface the correct move. **Possible fix in L-4d/L-4**.
+- `561fabcd` (zombie name=Fissionator): model found different name (Radialisk). Reranker may surface correct one. **Possible fix in L-4d/L-4**.
+
+**Predicted 2×2 outcomes:**
+- L-4c (sup only): +2-3 KU (mortgage, instagram, coins) → ~78-79%
+- L-4d (rer only): +1-2 SSU (yoga, bikes) + 1 multi-session (camping) → ~78-79%
+- L-4 (sup+rer): +3 KU + +2 SSU + +1 multi-session = ~80-82%
+- L-5 (L-4+budget×2+enumeration): additionally +1 multi-session (art events) → ~81-83%
 
 ## Published comparison targets (per-category ledger)
 
