@@ -955,6 +955,10 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 | L-1 | + LLM reranker (gpt-4o-mini, cap=50) | **73.0%** | done 2026-07-20; reranker hurts temporal (-15.8pp) + abstention (-10pp), gains SSU (+20pp) + multi-session (+5.6pp) |
 | L-2 | + community graph (no rebuild) + query rewrite | **68.0%** | done 2026-07-20; worst config — abstention −16.7pp, temporal −15.8pp, KU −9pp. Query rewrite reformulates questions badly; community rebuild was not triggered so community context was empty. |
 | L-3 | answer-only on L-2 data: L-0 base + read_supersession + global hybrid BM25 | **67.0%** | done 2026-07-20; **confounded run** — global hybrid on all routes hurt SSU (-10pp), SSA (-12.5pp), KU (-9.1pp). Temporal drop (−21pp vs L-0) attributed to: answer-only on L-2 ingest (different extraction run) + global hybrid noise. Positive: abstention +10pp (removing community/rewrite noise). Global hybrid reverted after this run. L-4 planned as fresh ingest with L-0 base + supersession only. |
+| A-sup-only | **INVALID** answer-only on L-2 data: supersession=on, reranker=off — 100% of 100 answers identical to L-2; supersession changes retrieval size but does not flip any answers on L-2 ingest data. 73.0% score is pure judge re-grade variance (9/100 flips); not a supersession signal. Fresh ingest required. | — |
+| A-rerank-only | **INVALID** answer-only on L-2 data: reranker=on (route-aware), supersession=off — 100% of 100 answers identical to L-2; LLM reranker changes ordering but LLM answers are LLM-stable on this data. 73.0% is judge variance. Fresh ingest required. | — |
+| L-4 | **fresh ingest**: L-0 base + supersession=on + route-aware reranker (skip temporal+unanswerable_risk), Stack B port 8081 | TBD | running ingest 2026-07-20; clean ablation of combined config |
+| L-4c | **fresh ingest ablation**: L-0 base + supersession=on only (reranker=off), Stack C port 8082 | TBD | running ingest 2026-07-20; isolates supersession contribution |
 
 ## Published comparison targets (per-category ledger)
 
