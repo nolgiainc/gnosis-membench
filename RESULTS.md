@@ -953,7 +953,8 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 |---|---|---|---|
 | L-0 (baseline) | Run 18 config + azure/text-embedding-3-large/3072 + scoped dense | **76.0%** | done 2026-07-19 |
 | L-1 | + LLM reranker (gpt-4o-mini, cap=50) | **73.0%** | done 2026-07-20; reranker hurts temporal (-15.8pp) + abstention (-10pp), gains SSU (+20pp) + multi-session (+5.6pp) |
-| L-2 (planned) | + community graph + multi-query rewrite | pending | open-domain + multi-hop |
+| L-2 | + community graph (no rebuild) + query rewrite | **68.0%** | done 2026-07-20; worst config — abstention −16.7pp, temporal −15.8pp, KU −9pp. Query rewrite reformulates questions badly; community rebuild was not triggered so community context was empty. |
+| L-3 | answer-only on L-2 data: L-0 base + read_supersession + global hybrid BM25 | **67.0%** | done 2026-07-20; **confounded run** — global hybrid on all routes hurt SSU (-10pp), SSA (-12.5pp), KU (-9.1pp). Temporal drop (−21pp vs L-0) attributed to: answer-only on L-2 ingest (different extraction run) + global hybrid noise. Positive: abstention +10pp (removing community/rewrite noise). Global hybrid reverted after this run. L-4 planned as fresh ingest with L-0 base + supersession only. |
 
 ## Published comparison targets (per-category ledger)
 
