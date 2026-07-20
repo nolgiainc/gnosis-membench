@@ -924,14 +924,24 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 | 4 | Chronos Low | **92.60%** | 96.15% | 91.7% | 90.2% | arXiv:2603.16862, GPT-4o |
 | 5 | Oracle (full-context) | **82.4%** | — | — | — | LME paper |
 | 6 | Zep | **71.2%** | 83.3% | 57.9% | 62.4% | arXiv:2501.13956 |
-| — | gnosis L-0 | *pending* | — | — | — | Run 18 + gemini/3072 + scoped dense |
+| — | gnosis L-0 | **76.0%** | 74.3% | 84.2% | 72.7% | Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
 
-**Gnosis gap analysis (before L-0 result):**
-- Knowledge-update: smoke test confirmed near-0% (superseded value returned). Gap ~96 pp vs SOTA.
-- Temporal-reasoning: expected to be strong given LOCOMO temporal J 73.8. Should transfer.
-- Abstention: CoN instruction should help; abstention result partially known from LOCOMO adversarial (83.9).
-- Multi-session: unknown; dependent on cross-session fact retrieval quality.
-- Open-domain / preference: expected weakness given LOCOMO open-domain 29.2 J.
+**Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
+- overall 76.0% (excl. abstention 74.3%)
+- temporal-reasoning 84.2% (best category, as expected)
+- abstention 80.0%
+- multi-session 72.2%
+- knowledge-update 72.7%
+- single-session-preference 50.0% (weakest; n=4)
+- single-session-user 70.0%, single-session-assistant 75.0%
+
+**Gnosis gap analysis (post L-0):**
+- 76.0% overall vs Zep 71.2% — gnosis leads Zep by 4.8 pp on this config
+- 76.0% vs oracle 82.4% — 6.4 pp gap to full-context ceiling
+- 76.0% vs JordanMcCann 96.2% — 20 pp gap to SOTA
+- Temporal-reasoning strong (84.2%) as predicted from LOCOMO temporal results
+- Knowledge-update 72.7% (better than pre-L-0 smoke test suggested; MERGE patch may have helped)
+- single-session-preference 50.0% is the clearest weakness (n=4, small but notable)
 
 **Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
@@ -941,9 +951,9 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 
 | Run | Change under test | Overall | Verdict |
 |---|---|---|---|
-| L-0 (baseline) | Run 18 config + gemini embeddings + scoped dense retrieval | *pending* | — |
-| L-1 (planned) | + LLM reranker (run24.yaml) | pending | next: retrieval bottleneck |
-| L-2 (planned) | + community graph + multi-query rewrite (run25.yaml) | pending | open-domain + multi-hop |
+| L-0 (baseline) | Run 18 config + azure/text-embedding-3-large/3072 + scoped dense | **76.0%** | done 2026-07-19 |
+| L-1 | + LLM reranker (gpt-4o-mini, cap=50) | **73.0%** | done 2026-07-20; reranker hurts temporal (-15.8pp) + abstention (-10pp), gains SSU (+20pp) + multi-session (+5.6pp) |
+| L-2 (planned) | + community graph + multi-query rewrite | pending | open-domain + multi-hop |
 
 ## Published comparison targets (per-category ledger)
 
