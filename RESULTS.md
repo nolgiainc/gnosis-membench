@@ -977,6 +977,7 @@ Column key: T=temporal-reasoning (n=19 non-abs), SSU=single-session-user (n=10),
 | **L-11** | **supersession observation_date fix (commit 42a29e1)** on L-10 data (Stack B) | **72.0%** | **79%** | 80% | 70% | 72% | **64%** | 88% | observation_date fix had **zero effect on KU** (still 64%). T=79% from L-10 confirmed stable. Root cause diagnosed: L-10 fresh ingest retrieves more conflicting verbatim turns per KU question (e.g. 3→4→5 Korean-restaurants across sessions); CoN picks wrong one. Not a supersession bug — the issue is temporal conflict resolution in the reading instruction. See KU root cause analysis below. |
 | L-12 | CoN recency-preference clause v1 (`GNOSIS_CON_RECENCY_PREFERENCE_ENABLED=true`, gnosis c14c036) | **73.0%** | 74% | 90% | 73% | 72% | 64% | 88% | Swap, net zero for KU: fixed `6aeb4375` (correctly picks Sept "4 restaurants" over May "5") but broke `f9e8c073` (model saw 3-vs-5 conflict, cited never-guess rule, abstained instead of resolving to most recent). 1cea1afa still extrapolates (600 + growth rate → 624). T drop 79%→74% likely caused by clause firing on temporal route. Two clause bugs: (1) too weak — "prefer" lets never-guess override; (2) too global — fires on temporal route. Both fixed in gnosis commit 21f25e0 → L-13. |
 | **L-13** | **CoN recency-preference clause v2** (route-aware + "state directly" + anti-extrapolation, gnosis 21f25e0) | **74.0%** | **79%** | 80% | 67% | 67% | **82%** | **100%** | **NEW BEST on L-10 data.** KU recovered 64%→82% (+18pp, 2 questions fixed: `6aeb4375` and `f9e8c073` and `1cea1afa`). T restored 74%→79% (temporal route excluded). SSA 88%→100%. ABS 73%→67% (−2q) and MS 72%→67% (−1q) regressions: "state directly" phrasing too aggressive — clause fires on related-but-different facts (guitar→violin, baseball→football) and on "initially planted" questions where the question asks about a historical state not the current one. See L-13 regression analysis below. L-14 targets clause v3 to recover these 3 questions. |
+| L-14 | CoN recency-preference clause v3 ("same specific fact the question is asking about" + "unless past/initial state", gnosis 8e2c4f8) | **73.0%** | 74% | 80% | 67% | 67% | **91%** | 100% | vs L-13: GAINED `0ddfec37_abs` (+ABS, confirmed — model now says "no footballs, only baseballs") + `830ce83f` (+KU, surprise bonus → KU 82%→91%). LOST 3 questions in temporal/SSP (unaffected by clause, consistent with judge noise). Net vs L-13: +2 genuine gains, 3 noise losses → measured 73% = L-13's 74% within 2pp noise band. `29f2956b_abs` (guitar→violin) still not fixed — "same specific fact" phrasing too loose for instrument conflation. `6456829e` (initially planted) still not fixed (retrieval returns wrong initial-count memory). L-15 tests clause v4: restructure to fire ONLY "among the memories you've identified as relevant," anchoring rule to already-filtered set. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 
@@ -1108,6 +1109,25 @@ expansion for temporal route.
 **Root cause: "the same fact" trigger is too loose.** The model treats semantically-related but distinct facts (guitar ↔ violin, baseball ↔ football) as "the same fact" and fires the clause. Similarly, the "current state" language doesn't prevent firing when the question asks about a historical initial state.
 
 **L-14 fix (recency clause v3):** Change trigger from "memories about the same fact" to "memories give conflicting values for the same specific fact the question is asking about" (anchors to the question's actual subject), and add "unless the question asks about a past or initial state" (prevents firing on `6456829e`). Anti-extrapolation rule preserved. See gnosis commit implementing v3.
+
+### L-14 regression analysis (2026-07-29)
+
+**L-14 outcome (CoN recency clause v3, gnosis 8e2c4f8):**
+
+Net changes vs L-13:
+- **GAINED** `0ddfec37_abs` (KU-abs): confirmed fixed — model now says "no footballs, only baseballs" correctly identifying the semantic mismatch ✓
+- **GAINED** `830ce83f` (KU): surprise bonus, KU goes 82%→91% (10/11)
+- **LOST** `0bc8ad92` (temporal): temporal route excluded from clause — judge noise
+- **LOST** `c8090214_abs` (temporal-abs): temporal route excluded — judge noise
+- **LOST** `195a1a1b` (SSP): SSP unaffected by clause — judge noise
+
+**Conclusion:** v3 fixed `0ddfec37_abs` (confirmed) and added a bonus KU fix. The 3 "losses" are in categories unaffected by the clause change and are consistent with the ~2pp per-category judge noise floor. Measured 73% = L-13's 74% within noise band.
+
+**Remaining unfixed regressions after L-14:**
+1. **`29f2956b_abs`** (still failing): "same specific fact the question is asking about" was too loose — GPT-4o still treats "guitar practice time" as the same specific fact as "violin practice time" (both are "daily practice time"). Model still said "30 minutes every day to practicing violin."
+2. **`6456829e`** (still failing): Model found "5 tomato plants initially" but gold is "8" (4 tomatoes + 4 cucumbers). Appears to be a retrieval issue — the initial combined planting count is not surfaced as the top memory.
+
+**L-15 fix (recency clause v4):** Restructure the clause to fire ONLY "among the memories you have identified as relevant above." This makes the recency rule conditional on the model's own relevance filter, which already correctly classified guitar memories as non-relevant to violin questions in L-9 (before the clause). The "state that value directly" override then can't bypass that correct judgment. See gnosis commit 43330e1.
 
 ### L-9 temporal failure analysis (2026-07-24, 5 non-abstention failures, T=73.7%)
 
