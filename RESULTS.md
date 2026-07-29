@@ -979,6 +979,7 @@ Column key: T=temporal-reasoning (n=19 non-abs), SSU=single-session-user (n=10),
 | **L-13** | **CoN recency-preference clause v2** (route-aware + "state directly" + anti-extrapolation, gnosis 21f25e0) | **74.0%** | **79%** | 80% | 67% | 67% | **82%** | **100%** | **NEW BEST on L-10 data.** KU recovered 64%→82% (+18pp, 2 questions fixed: `6aeb4375` and `f9e8c073` and `1cea1afa`). T restored 74%→79% (temporal route excluded). SSA 88%→100%. ABS 73%→67% (−2q) and MS 72%→67% (−1q) regressions: "state directly" phrasing too aggressive — clause fires on related-but-different facts (guitar→violin, baseball→football) and on "initially planted" questions where the question asks about a historical state not the current one. See L-13 regression analysis below. L-14 targets clause v3 to recover these 3 questions. |
 | L-14 | CoN recency-preference clause v3 ("same specific fact the question is asking about" + "unless past/initial state", gnosis 8e2c4f8) | **73.0%** | 74% | 80% | 67% | 67% | **91%** | 100% | vs L-13: GAINED `0ddfec37_abs` (+ABS, confirmed — model now says "no footballs, only baseballs") + `830ce83f` (+KU, surprise bonus → KU 82%→91%). LOST 3 questions in temporal/SSP (unaffected by clause, consistent with judge noise). Net vs L-13: +2 genuine gains, 3 noise losses → measured 73% = L-13's 74% within 2pp noise band. `29f2956b_abs` (guitar→violin) still not fixed — "same specific fact" phrasing too loose for instrument conflation. `6456829e` (initially planted) still not fixed (retrieval returns wrong initial-count memory). L-15 tests clause v4: restructure to fire ONLY "among the memories you've identified as relevant," anchoring rule to already-filtered set. |
 | L-15 | CoN recency-preference clause v4 (relevance-first: "Among the memories you have identified as relevant above", gnosis 43330e1) | **73.0%** | 79% | 90% | 67% | 67% | 82% | 88% | GAINED `29f2956b_abs` (confirmed — model now says "I don't know. None of the relevant memories mention violin practice") + `6456829e` (MS) + `66f24dbb` (SSU). LOST `0ddfec37_abs` (recovered in L-14 but not here: model now says "0 footballs" rather than abstaining — different reasoning failure mode, not clause-related) + 3 others (SSA/SSP/MS noise). Consensus across L-13/L-14/L-15 = 72/100 stable, 10 noisy questions. **Assessment: recency clause campaign is at the noise floor.** Real stable gains: KU=82% (3 KU fixes from L-13), T=79% (L-10 data). ABS improvements are real individually but cancel due to judge noise at n=30 ABS questions. Current code (v4, 43330e1) is the most principled formulation. Next lever: BM25 for temporal OR community graph for MS. |
+| **L-16** | **CoN absence-implies-unknown clause** (`GNOSIS_CON_ABSTENTION_ENABLED=true`, gnosis 7f36431): (1) "do not infer count is zero because no memory mentions the activity"; (2) "if only one party's data exists in a comparison, say not enough info" | **75.0%** | 74% | 90% | 70% | 72% | 82% | 100% | **NEW BEST single-run (+1pp vs L-13).** FIXED `0ddfec37_abs` (ABS: "no football records → not enough info about footballs" — clause worked via CoN path). FIXED `4adc0475` (MS, goals+assists=5) + `7161e7e2` (SSU/SSA, shift rotation). BROKE `0bc8ad92` (T: model used wrong reference date March 25 vs true date 5mo later — judge noise, unrelated to clause). Key finding: clause DID NOT fix `88432d0a_abs` or `gpt4_fe651585_abs` — root cause: these questions are being routed to `temporal` (due to "in the past two weeks" phrasing), and temporal route EXCLUDES CoN entirely, so the clause never fires. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 
@@ -1163,6 +1164,32 @@ Unstable (noisy / 1/3 runs):
 **Assessment:** The campaign succeeded on its primary goal (KU: 64%→82%, +18pp, all 3 KU fixes stable). T also improved 74%→79% via the temporal route exclusion design. Further ABS improvements exist but are at the noise floor for single-run measurements. The v4 clause (43330e1) is the most principled formulation and the current default.
 
 **Next levers:** BM25 retrieval for temporal ("Is Grep All You Need?" paper confirms BM25 outperforms vectors on LME for every model pair) and/or community graph for multi-session. Both are write-path changes requiring fresh ingest.
+
+### L-16 analysis (2026-07-29)
+
+**L-16 result (CoN absence-implies-unknown clause, gnosis 7f36431): 75.0%** — new best single-run.
+
+**What the clause fixed:**
+- `0ddfec37_abs` (ABS): FIXED. Model now says "no mention of autographed footballs… if you meant baseballs, then 15; otherwise, not enough information." Judge accepts this as a correct abstention. Root cause: `0ddfec37_abs` is on the CoN path (NOT temporal-routed), so the abstention clause fired correctly.
+
+**What the clause did NOT fix:**
+- `88432d0a_abs` (ABS, "zero egg tarts"): Not fixed. Root cause found: this question is being **misrouted to temporal** because of the phrase "in the past two weeks," and temporal route **excludes CoN entirely** — no reading instruction reaches the model, so the abstention clause never fires.
+- `gpt4_fe651585_abs` (ABS, "who became parent first"): Not fixed. Model found Alex's date (January) AND inferred Tom's date via Rachel (Tom's wife, born February) — model thinks it has complete data and answers "Alex first." The inference chain is plausible but the gold expects "not enough info."
+
+**Noise moves in L-16:**
+- `4adc0475` (MS, goals+assists=5): FIXED (this was "wrong in L-15 only" — likely noise flip back to correct)
+- `7161e7e2` (SSU, shift rotation): FIXED (similar — was correct in L-13/L-14, wrong in L-15)
+- `0bc8ad92` (T, museum months since): BROKE (was correct in L-13/L-15, wrong in L-14; model used wrong reference date in L-16 — same failure as L-14, pure noise)
+
+**Root cause of temporal misrouting (88432d0a_abs):**
+The router prompt defined `temporal` as including "how many days/months" which was interpreted too broadly — questions like "how many TIMES did I do X in the past two weeks" (frequency count) were classified as temporal. The temporal route disables CoN (`chain_of_note = route != "temporal"`), so the model received raw memories with no reading instruction. Model behavior without reading instruction: "no egg tarts mentioned → zero."
+
+**Fix committed (gnosis dda456c):** Updated `_ROUTER_GUIDE` to:
+- Explicitly exclude frequency counts ("how many TIMES" / "how many DIFFERENT things") from the temporal route
+- Update temporal description: "asks WHEN something happened, elapsed time ('how long ago', 'how many days/months ago/since'), or ordering in time"
+- Update aggregative description: includes "how many times did I do X?", "how many different Y did I attend?"
+
+This is tested in **L-17**.
 
 ### L-9 temporal failure analysis (2026-07-24, 5 non-abstention failures, T=73.7%)
 
