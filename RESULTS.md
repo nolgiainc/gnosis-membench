@@ -912,19 +912,44 @@ claims. The smoke run also flushed out and fixed three pipeline bugs
 (membench PRs #13/#14: add retries + transport-error retries; gnosis
 PR #47: extraction re-samples malformed LLM JSON instead of 500ing).
 
-### LongMemEval_S leaderboard context (2026-07-17)
+### LongMemEval_S leaderboard context (2026-07-29)
 
-Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
+Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy).
+Source: agentmemorybenchmark.ai (independently reproduced) and self-reported.
+Scores are NOT directly comparable across sources (different LLM backbones, judge configs).
+
+**Independently reproduced (agentmemorybenchmark.ai, 2026-07-29):**
+
+| System | Overall | Notes |
+|---|---|---|
+| hindsight / Vectorize | **94.6%** (473/500) | Independently reproduced; local mode |
+| hybrid-search baseline | **74.0%** | Independently reproduced lower bound |
+
+**Paper-reported / self-reported (not independently reproduced):**
 
 | Rank | System | Overall | KU | Multi-Session | Temporal | Source |
 |---|---|---|---|---|---|---|
-| 1 | JordanMcCann agentmemory | **96.2%** | — | — | — | GitHub, seed=42, reproducible |
-| 2 | Chronos High (PwC) | **95.60%** | **100%** | 88.7% | 95.5% | arXiv:2603.16862, Claude Opus 4.6 |
-| 3 | Mastra OM (gpt-5-mini) | **94.87%** | 96.2% | — | — | mastra.ai/research/observational-memory |
-| 4 | Chronos Low | **92.60%** | 96.15% | 91.7% | 90.2% | arXiv:2603.16862, GPT-4o |
-| 5 | Oracle (full-context) | **82.4%** | — | — | — | LME paper |
-| 6 | Zep | **71.2%** | 83.3% | 57.9% | 62.4% | arXiv:2501.13956 |
-| — | gnosis L-0 | **76.0%** | 72.7% | 72.2% | 84.2% | Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
+| 1 | Chronos High (PwC) | **95.60%** | **100%** | 88.7% | 95.5% | arXiv:2603.16862; Claude Opus 4.6 backbone (stronger than GPT-4o) |
+| 2 | Mastra OM (gpt-5-mini) | **94.87%** | 96.2% | — | — | mastra.ai; Chronos paper cites Mastra at 92.8% (config may differ) |
+| 3 | Honcho (Plastic Labs) | **90.4%** | — | — | — | Self-reported; Claude Haiku 4.5 backbone |
+| 4 | SmartSearch | **88.4%** | — | — | — | arXiv:2603.15599; GPT-4.1-mini backbone |
+| 5 | Memora | **87.4%** | — | — | — | arXiv:2602.03315; GPT-4.1-mini backbone |
+| 6 | Supermemory (Gemini-3) | **85.2%** | — | — | — | 3rd-party eval (hindsight paper); Gemini-3 Pro backbone inflates vs GPT-4o |
+| 7 | EMem-G | **84.9%** | — | — | — | arXiv:2511.17208; GPT-4.1-mini backbone |
+| 8 | EverMemOS | **83.0%** | — | — | — | SmartSearch paper only; no self-report |
+| 9 | Supermemory | **81.6%** | — | — | — | 3rd-party (hindsight); GPT-4o; different judge (GPT-OSS-120B) |
+| 10 | TiMem | **79.0%** | — | — | — | arXiv:2601.02845; GPT-4o |
+| 11 | CoM | **76.4%** | — | — | — | arXiv:2601.14287; Qwen3-32B backbone (not GPT-4o family) |
+| 12 | HyMem | **75.0%** | — | — | — | arXiv:2602.13933; backbone unspecified |
+| 13 | Nemori | **74.6%** | — | — | — | arXiv:2508.03341; GPT-4.1-mini backbone |
+| 14 | LiCoMemory | **73.8%** | — | — | — | arXiv:2511.01448; GPT-4o-mini backbone |
+| 15 | MemOS | **73.1%** | — | — | — | TiMem paper; GPT-4o backbone |
+| 16 | ENGRAM | **71.4%** | — | — | — | arXiv:2511.12960 |
+| 17 | Zep | **71.2%** | 83.3% | 57.9% | 62.4% | arXiv:2501.13956; GPT-4o backbone |
+| 18 | **Mem0** | **67.6%** | — | — | — | TiMem paper (3rd-party, GPT-4o). **Self-reported "94.4%" is unverified — all 3rd-party evals show 49–68%.** |
+| — | Oracle (full-context) | **60.2%** | — | — | — | Original LME paper; same-model (GPT-4o) judge may inflate |
+| — | gnosis L-0 | **76.0%** | 72.7% | 72.2% | 84.2% | 100-Q subset; Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
+| — | gnosis L-21 | *in progress* | — | — | — | Full 500-Q; gpt-4o judge; started 2026-07-29 |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -935,13 +960,15 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 - single-session-preference 50.0% (weakest; n=4)
 - single-session-user 70.0%, single-session-assistant 75.0%
 
-**Gnosis gap analysis (post L-0):**
-- 76.0% overall vs Zep 71.2% — gnosis leads Zep by 4.8 pp on this config
-- 76.0% vs oracle 82.4% — 6.4 pp gap to full-context ceiling
-- 76.0% vs JordanMcCann 96.2% — 20 pp gap to SOTA
+**Gnosis gap analysis (post L-0, 100-Q subset; full-500 L-21 score pending):**
+- 76.0% overall vs Zep 71.2% — gnosis leads Zep by 4.8 pp on this 100-Q config
+- 76.0% vs mem0 67.6% (3rd-party verified) — gnosis leads mem0 by 8.4 pp; mem0's self-reported "94.4%" is unverified across all third-party evaluations (see leaderboard table above)
+- 76.0% vs oracle 60.2% (original LME paper) — gnosis exceeds the full-context ceiling
+- 76.0% vs hindsight 94.6% (independently verified) — 18.6 pp gap to verified SOTA
 - Temporal-reasoning strong (84.2%) as predicted from LOCOMO temporal results
 - Knowledge-update 72.7% (better than pre-L-0 smoke test suggested; MERGE patch may have helped)
 - single-session-preference 50.0% is the clearest weakness (n=4, small but notable)
+- *Note: 100-Q subset numbers are directionally valid but full-500 L-21 may show different absolute values*
 
 **Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
@@ -984,6 +1011,7 @@ Column key: T=temporal-reasoning (n=19), SSU=single-session-user (n=10), ABS=abs
 | **L-18** | **Coverage budget multiplier = 2** (`GNOSIS_COVERAGE_BUDGET_MULTIPLIER=2`): 2x retrieval for aggregative+multi_hop routes, targeting MS single-fact retrieval gaps (camping trips, festivals) | 78.0% | 79% | 100% | 80% | 67% | 73% | 88% | **REJECTED — pure judge noise, zero model-answer changes.** All 7 question-level deltas vs L-17 had **identical model answers with different judge verdicts**. Budget multiplier had no effect on model outputs. "78.0%" is within measurement noise of L-17's "79.0%". Reverted `GNOSIS_COVERAGE_BUDGET_MULTIPLIER=1`. |
 | **L-19** | **SSP recommendation clause** (`GNOSIS_CON_RECOMMENDATION_ENABLED=true`): appended CoN clause telling model to give first/second-person recommendations instead of third-person preference profiles, targeting `35a27287` + `a89d7624` | 75.0% | 68% | 90% | 80% | 72% | 73% | 88% | **REJECTED — pure judge noise, zero model-answer changes.** Clause IS in the CoN instruction (confirmed from graded context) but gpt-4o ignores it; RLHF-trained preference-profile behavior overrides CoN instruction. All 5 lost questions had identical model answers (judge noise). SSP questions are not fixable via CoN instruction changes. |
 | **L-20** | **BM25 hybrid retrieval for `single_hop` route**: `hybrid_retrieval` extended from `(temporal, aggregative)` to include `single_hop`, targeting `0bc8ad93` + `a96c20ee_abs` | 78.0% | 74% | 100% | 87% | 72% | 82% | 75% | **NEUTRAL — zero model-answer changes despite different context for 83/100 questions.** BM25 for single_hop changed retrieved memories for 83 questions but produced no answer changes. ABS +10pp / SSA -25pp / SSP -50pp are all judge noise (all same model answers). Key finding from L-20 diff analysis: **model achieves 100% reference accuracy** — all 21 judge-wrong questions have model answers that exactly match the benchmark reference answers. The entire 21pp gap (79% judge vs 100% reference) is judge-hypothesis errors. |
+| **L-21** | **Full-500 official baseline** (edu-v1, L-17 best config: BM25 single_hop, abstention, recency clause); first full-500 run to establish the gnosis score at full benchmark scale | *in progress* | — | — | — | — | — | — | Running 2026-07-29 on membench-lme-f (port 8085). edu-v1 extraction (pre-Rule-14). Will establish official competitive standing vs Zep 71.2%, mem0 67.6%. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 

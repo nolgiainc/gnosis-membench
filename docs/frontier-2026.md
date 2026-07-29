@@ -52,25 +52,56 @@ optimization target.
 
 ---
 
-## 1. LongMemEval_S — the leaderboard that matters (as of 2026-07-17)
+## 1. LongMemEval_S — the leaderboard that matters (as of 2026-07-29)
 
-| Rank | System | Score | KU | Multi-Session | Temporal | Notes |
-|---|---|---|---|---|---|---|
-| 1 | JordanMcCann agentmemory | **96.2%** | — | — | — | gpt-4o judge, seed=42, reproducible |
-| 2 | Chronos High (PwC, arXiv:2603.16862) | **95.60%** | **100%** | 88.7% | 95.5% | Claude Opus 4.6 generator |
-| 3 | OMEGA | **95.4%** | 96.2% | 83% | 94% | gpt-4.1 as *both* judge and generator — exclude from strict comparison |
-| 4 | Mastra Observational Memory | **94.87%** | 96.2% | — | — | gpt-5-mini generator, gpt-4o judge |
-| 5 | Chronos Low | **92.60%** | 96.15% | 91.7% | 90.2% | GPT-4o generator |
-| 6 | Mastra OM (gpt-4o) | **84.23%** | 85.9% | — | — | |
-| 7 | Oracle (full-context) | **82.4%** | — | — | — | |
-| 8 | Supermemory | **81.6%** | — | — | — | |
-| 9 | Zep (arXiv:2501.13956) | **71.2%** | 83.3% | 57.9% | 62.4% | GPT-4o judge |
-| gnosis L-0 | Run 18 + gemini embeddings | *pending* | — | — | — | smoke test confirmed pipeline works |
+*Source: agentmemorybenchmark.ai (independently reproduced) and OMEGA leaderboard. Unverified entries
+are from self-reports or third-party papers — scores are not directly comparable across sources.*
+
+**Independently reproduced (agentmemorybenchmark.ai):**
+
+| System | Score | Notes |
+|---|---|---|
+| hindsight / Vectorize | **94.6%** (473/500) | Independently reproduced; local mode |
+| hybrid-search (baseline) | **74.0%** | Independently reproduced baseline |
+
+**Unverified / paper-reported:**
+
+| System | Score | Source | Notes |
+|---|---|---|---|
+| Chronos High (PwC, arXiv:2603.16862) | **95.6%** | Self-reported | Claude Opus 4.6 generator — stronger backbone inflates score |
+| OMEGA | **95.4%** | Self-reported | gpt-4.1 as *both* judge and generator — exclude from strict comparison |
+| Mastra OM (gpt-5-mini) | **94.87%** | Self-reported (OMEGA board) | gpt-5-mini generator; Chronos paper cites Mastra at 92.8% (different config) |
+| Honcho (Plastic Labs) | **90.4%** | Self-reported | Claude Haiku 4.5 backbone |
+| SmartSearch (arXiv:2603.15599) | **88.4%** | Self-reported | GPT-4.1-mini backbone |
+| Memora (arXiv:2602.03315) | **87.4%** | Self-reported | GPT-4.1-mini backbone |
+| Supermemory (Gemini-3) | **85.2%** | 3rd-party (hindsight paper) | Gemini-3 Pro backbone inflates vs GPT-4o; different judge |
+| EMem-G (arXiv:2511.17208) | **84.9%** | Self-reported | GPT-4.1-mini backbone |
+| Mastra OM (gpt-4o) | **84.8%** | Chronos paper | GPT-4o backbone |
+| EverMemOS | **83.0%** | SmartSearch paper only | No self-report or independent reproduction |
+| Supermemory | **81.6%** | 3rd-party (hindsight paper) | GPT-4o backbone; different judge (GPT-OSS-120B) |
+| Oracle (full-context, GPT-4o) | **60.2%** | Original LME paper | Same-model judge may inflate; useful as architectural lower bound |
+| TiMem (arXiv:2601.02845) | **79.0%** | Self-reported | GPT-4o backbone |
+| CoM (arXiv:2601.14287) | **76.4%** | Self-reported | Qwen3-32B backbone — not directly comparable to GPT-4o-family |
+| HyMem (arXiv:2602.13933) | **75.0%** | Self-reported | Backbone unspecified |
+| Nemori (arXiv:2508.03341) | **74.6%** | Self-reported | GPT-4.1-mini backbone |
+| LiCoMemory (arXiv:2511.01448) | **73.8%** | Self-reported | GPT-4o-mini backbone |
+| MemOS | **73.1%** | TiMem paper | GPT-4o backbone |
+| ENGRAM (arXiv:2511.12960) | **71.4%** | Self-reported | |
+| Zep (arXiv:2501.13956) | **71.2%** | Self-reported | GPT-4o backbone; KU 83.3%, Multi-session 57.9%, Temporal 62.4% |
+| **Mem0** | **67.6%** | TiMem paper (3rd-party) | GPT-4o backbone. **Self-reported 94.4% is unverified and inconsistent with all third-party evaluations — disregard.** Scores vary 49–68% across papers. |
+| gnosis L-21 | *in progress* | This campaign | Full 500, gpt-4o judge |
 
 **Knowledge-update is the clearest performance divide.** Chronos achieves 100%
 KU because its event calendar structure makes temporal supersession deterministic.
 Gnosis's smoke test confirmed that KU is its weakest axis: the superseded value
 was returned instead of the updated one.
+
+**mem0 score clarification (2026-07-29):** mem0's self-reported "94.4%" on LME_S is
+not reproduced in any independent or competitor evaluation. The TiMem paper
+(arXiv:2601.02845) evaluated mem0 at 67.6% with GPT-4o — consistent with a
+separate range of 49–68% across multiple papers. The 94.4% figure likely reflects
+a non-standard configuration (different judge, k-retrieval, or question subset)
+and should not be used for competitive comparison.
 
 ---
 
