@@ -976,6 +976,7 @@ Column key: T=temporal-reasoning (n=19 non-abs), SSU=single-session-user (n=10),
 | L-9-grade3 | clean replication of L-9 (Stack E, L-5-v2 graph) | **73.0%** | 74% | 70% | 73% | 72% | 82% | 75% | Confirms stable L-9 baseline: grade1 73.7% ≈ grade3 74%, KU=82% stable. Grade3 wiped 49 contaminated cached answers from July 24 before running. |
 | **L-11** | **supersession observation_date fix (commit 42a29e1)** on L-10 data (Stack B) | **72.0%** | **79%** | 80% | 70% | 72% | **64%** | 88% | observation_date fix had **zero effect on KU** (still 64%). T=79% from L-10 confirmed stable. Root cause diagnosed: L-10 fresh ingest retrieves more conflicting verbatim turns per KU question (e.g. 3→4→5 Korean-restaurants across sessions); CoN picks wrong one. Not a supersession bug — the issue is temporal conflict resolution in the reading instruction. See KU root cause analysis below. |
 | L-12 | CoN recency-preference clause v1 (`GNOSIS_CON_RECENCY_PREFERENCE_ENABLED=true`, gnosis c14c036) | **73.0%** | 74% | 90% | 73% | 72% | 64% | 88% | Swap, net zero for KU: fixed `6aeb4375` (correctly picks Sept "4 restaurants" over May "5") but broke `f9e8c073` (model saw 3-vs-5 conflict, cited never-guess rule, abstained instead of resolving to most recent). 1cea1afa still extrapolates (600 + growth rate → 624). T drop 79%→74% likely caused by clause firing on temporal route. Two clause bugs: (1) too weak — "prefer" lets never-guess override; (2) too global — fires on temporal route. Both fixed in gnosis commit 21f25e0 → L-13. |
+| **L-13** | **CoN recency-preference clause v2** (route-aware + "state directly" + anti-extrapolation, gnosis 21f25e0) | **74.0%** | **79%** | 80% | 67% | 67% | **82%** | **100%** | **NEW BEST on L-10 data.** KU recovered 64%→82% (+18pp, 2 questions fixed: `6aeb4375` and `f9e8c073` and `1cea1afa`). T restored 74%→79% (temporal route excluded). SSA 88%→100%. ABS 73%→67% (−2q) and MS 72%→67% (−1q) regressions: "state directly" phrasing too aggressive — clause fires on related-but-different facts (guitar→violin, baseball→football) and on "initially planted" questions where the question asks about a historical state not the current one. See L-13 regression analysis below. L-14 targets clause v3 to recover these 3 questions. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 
@@ -1075,6 +1076,38 @@ expansion for temporal route.
 **Why L-5-v2 didn't have this problem**: The L-5-v2 ingest was done without Bug 2 fix, so fewer/different extracted facts exist in the store. The dense search returned sparser context for KU questions, accidentally avoiding the conflicting-values problem. L-10 fresh ingest is richer, which is better for T but exposes the CoN reading gap for KU.
 
 **Next experiment**: L-12 — add temporal conflict resolution rule to CoN instruction (+ tighten likelihood carve-out to exclude "how many do I currently have?" phrasing). Read-path only on Stack B (L-10 ingest).
+
+### L-13 regression analysis (2026-07-29)
+
+**L-13 net outcome vs L-11 (the prior best on L-10 data):**
+
+| Category | L-11 | L-13 | Δ |
+|---|---|---|---|
+| T temporal | 79% | 79% | ±0 |
+| SSU single-session | 80% | 80% | ±0 |
+| ABS abstention | 70% | 67% | −3pp (−1q) |
+| MS multi-session | 72% | 67% | −6pp (−1q) |
+| KU knowledge-update | 64% | **82%** | **+18pp (+2q)** |
+| SSA single-session-asst | 88% | 100% | +12pp (+1q) |
+| **Overall** | **72%** | **74%** | **+2pp (+2q)** |
+
+**Three regressions diagnosed (correct in L-12, wrong in L-13):**
+
+1. **`0ddfec37_abs`** (KU-abs) "How many autographed footballs have I added in the first 3 months?"
+   - Gold: abstain — memories mention only baseballs (15 then 20), not footballs.
+   - L-13 failure: the "state that value directly" clause caused the model to conflate baseball→football and report the most recent baseball count. Was fixed in L-12 (softer "prefer" still allowed the never-guess rule to correctly abstain); the stronger v2 phrasing overrode it.
+
+2. **`29f2956b_abs`** (SSU-abs) "How much time do I dedicate to practicing violin every day?"
+   - Gold: abstain — memories mention guitar practice time (not violin).
+   - L-13 failure: same conflation pattern; clause applied the most recent guitar practice duration to the violin question. New regression in L-13 only (was correct in L-9 through L-12).
+
+3. **`6456829e`** (MS) "How many plants did I initially plant for tomatoes and cucumbers?"
+   - Gold: 8 (the initial planting count).
+   - L-13 failure: clause correctly identified conflicting plant counts across sessions (initial 8 vs later count) but "the most recently-dated value is the correct CURRENT state" chose the larger recent count. The question explicitly asks about a **past/initial state**, not the current count. New regression in L-13 only.
+
+**Root cause: "the same fact" trigger is too loose.** The model treats semantically-related but distinct facts (guitar ↔ violin, baseball ↔ football) as "the same fact" and fires the clause. Similarly, the "current state" language doesn't prevent firing when the question asks about a historical initial state.
+
+**L-14 fix (recency clause v3):** Change trigger from "memories about the same fact" to "memories give conflicting values for the same specific fact the question is asking about" (anchors to the question's actual subject), and add "unless the question asks about a past or initial state" (prevents firing on `6456829e`). Anti-extrapolation rule preserved. See gnosis commit implementing v3.
 
 ### L-9 temporal failure analysis (2026-07-24, 5 non-abstention failures, T=73.7%)
 
