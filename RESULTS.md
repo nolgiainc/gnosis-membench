@@ -972,7 +972,9 @@ Column key: T=temporal-reasoning (n=19 non-abs), SSU=single-session-user (n=10),
 | L-10b | + sufficiency prompt: comparative ordering clause + topic-relevance check | **73.0%** | 73.7% | 80.0% | 76.7% | 66.7% | 81.8% | 75.0% | judge noise (~3pp); same T as L-9; SSU -10pp (noise) |
 | L-11 (reverted) | + _with_insufficiency_warning section injection | **72.0%** | 68.4% | 80.0% | 76.7% | 72.2% | 72.7% | 75.0% | Net -4pp overall; T -5.3pp; false-negative rate of sufficiency check too high — over-abstains on answerable questions |
 | L-12 (reverted) | + verbatim expansion for temporal route | **73.0%** | 68.4% | 80.0% | 80.0% | 66.7% | 81.8% | 87.5% | T -5.3pp: raw verbatim turns contain relative date phrases ("two weeks ago") without date anchor; same failure mode as CoN on temporal |
-| **L-10** | **fresh ingest (Bug 2)**: conversation_date stored on extracted facts | **73.0%** | **79%** | 80% | 77% | 72% | 64% | 75% | T +5.3pp vs L-9 as predicted. Overall −3pp: KU 81.8%→64% (−17.8pp, n=11 so 2 questions), SSU 90%→80% (n=10, 1 question). KU/SSU drops are within per-category noise; grade2 needed to separate signal from noise. |
+| **L-10** | **fresh ingest (Bug 2)**: conversation_date stored on extracted facts | **73.0%** | **79%** | 80% | 77% | 72% | 64% | 75% | T +5.3pp vs L-9 as predicted. Overall −3pp: KU 81.8%→64% (−17.8pp, n=11 = 2 questions). KU confirmed real by L-11 (not noise). |
+| L-9-grade3 | clean replication of L-9 (Stack E, L-5-v2 graph) | **73.0%** | 74% | 70% | 73% | 72% | 82% | 75% | Confirms stable L-9 baseline: grade1 73.7% ≈ grade3 74%, KU=82% stable. Grade3 wiped 49 contaminated cached answers from July 24 before running. |
+| **L-11** | **supersession observation_date fix (commit 42a29e1)** on L-10 data (Stack B) | **72.0%** | **79%** | 80% | 70% | 72% | **64%** | 88% | observation_date fix had **zero effect on KU** (still 64%). T=79% from L-10 confirmed stable. Root cause diagnosed: L-10 fresh ingest retrieves more conflicting verbatim turns per KU question (e.g. 3→4→5 Korean-restaurants across sessions); CoN picks wrong one. Not a supersession bug — the issue is temporal conflict resolution in the reading instruction. See KU root cause analysis below. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 
@@ -1044,6 +1046,34 @@ route caused T -5.3pp. Root cause: raw verbatim turns contain relative date phra
 "last Saturday") without the absolute date anchor that resolved extracted facts provide. SAME failure
 mode that originally motivated route-aware Chain-of-Note (Run 14 LOCOMO lesson). Do NOT enable verbatim
 expansion for temporal route.
+
+### L-11 KU root cause analysis (2026-07-29)
+
+**KU=64% is not a supersession problem.** L-11 proved this: the observation_date fix (commit 42a29e1) gave supersession a second-priority recency signal, but KU stayed at 63.6% (7/11). The actual cause is retrieval-side: the L-10 fresh ingest (100 questions × ~44–51 haystack sessions) produces more extracted facts and surfaces more verbatim short_term turns per question. When multiple sessions contain related-but-contradicting values (e.g. "I've tried 3 Korean restaurants", "…4 restaurants", "…at least 5"), the dense search retrieves all of them, and the CoN model picks the wrong one.
+
+**Three diagnosed regressions (correct in L-9-grade3, wrong in L-11):**
+
+1. **`6aeb4375`** "How many Korean restaurants have I tried?" (gold: 4)
+   - L-11 retrieved 5 short_term turns spanning 2023-05 to 2023-09: counts 3, 4, 3, 4, 5 (≥5 was from May, 4 from September = most recent).
+   - Model reasoned "earlier memory provides the higher and more definitive count" → answered 5. **Wrong temporal resolution.**
+   - L-9-g3 retrieved only 2 turns (3 then 4 in date order) → obvious.
+
+2. **`1cea1afa`** "How many Instagram followers do I currently have?" (gold: 600)
+   - L-11 retrieved: "600 followers" (May 28) + "10 new followers per week" (May 29) + "stuck at 427" (May 25) + "crossed 1,000" (Feb 28 — OLDER stale fact).
+   - Model calculated: 600 + 17 days × 10/week ≈ 624 → answered 624. **Over-inference via the likelihood carve-out.**
+   - L-9-g3 retrieved only the 600 fact → answered "last known was 600."
+
+3. **`0ddfec37_abs`** "How many autographed footballs in first 3 months?" (gold: abstain — only baseballs mentioned) — counted under ABS category, not KU.
+   - L-11 retrieved 2 conflicting baseball counts (15 first 3 months + 20 total); concluded "0 footballs" (logical but wrong form).
+   - L-9-g3 retrieved only the 15-baseballs fact → correct abstention phrasing.
+
+**Two root causes:**
+- **Temporal resolution failure**: When conflicting values exist across sessions, the CoN instruction has no rule for resolving them. The model sometimes picks a non-most-recent value. **Fix: add "when memories about the same fact give different values, trust the most recently-dated memory" to the CoN instruction.**
+- **Over-inference via likelihood carve-out**: "How many do I CURRENTLY have?" triggered the likelihood carve-out even though the question doesn't use likely/probable language. **Fix: tighten the carve-out or exclude KU-style "current count" questions from it.**
+
+**Why L-5-v2 didn't have this problem**: The L-5-v2 ingest was done without Bug 2 fix, so fewer/different extracted facts exist in the store. The dense search returned sparser context for KU questions, accidentally avoiding the conflicting-values problem. L-10 fresh ingest is richer, which is better for T but exposes the CoN reading gap for KU.
+
+**Next experiment**: L-12 — add temporal conflict resolution rule to CoN instruction (+ tighten likelihood carve-out to exclude "how many do I currently have?" phrasing). Read-path only on Stack B (L-10 ingest).
 
 ### L-9 temporal failure analysis (2026-07-24, 5 non-abstention failures, T=73.7%)
 
