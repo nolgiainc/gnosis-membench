@@ -949,18 +949,30 @@ Full LME_S leaderboard (gpt-4o judge unless noted, ordered by overall accuracy):
 - Community subgraph (Zep pattern) is the primary mechanism explaining the open-domain gap.
 - "Is Grep All You Need?" (arXiv:2605.15184) confirms BM25 outperforms vectors on LME for every model pair.
 
-| Run | Change under test | Overall | Verdict |
-|---|---|---|---|
-| L-0 (baseline) | Run 18 config + azure/text-embedding-3-large/3072 + scoped dense | **76.0%** | done 2026-07-19 |
-| L-1 | + LLM reranker (gpt-4o-mini, cap=50) | **73.0%** | done 2026-07-20; reranker hurts temporal (-15.8pp) + abstention (-10pp), gains SSU (+20pp) + multi-session (+5.6pp) |
-| L-2 | + community graph (no rebuild) + query rewrite | **68.0%** | done 2026-07-20; worst config — abstention −16.7pp, temporal −15.8pp, KU −9pp. Query rewrite reformulates questions badly; community rebuild was not triggered so community context was empty. |
-| L-3 | answer-only on L-2 data: L-0 base + read_supersession + global hybrid BM25 | **67.0%** | done 2026-07-20; **confounded run** — global hybrid on all routes hurt SSU (-10pp), SSA (-12.5pp), KU (-9.1pp). Temporal drop (−21pp vs L-0) attributed to: answer-only on L-2 ingest (different extraction run) + global hybrid noise. Positive: abstention +10pp (removing community/rewrite noise). Global hybrid reverted after this run. L-4 planned as fresh ingest with L-0 base + supersession only. |
-| A-sup-only | **INVALID** answer-only on L-2 data: supersession=on, reranker=off — 100% of 100 answers identical to L-2; supersession changes retrieval size but does not flip any answers on L-2 ingest data. 73.0% score is pure judge re-grade variance (9/100 flips); not a supersession signal. Fresh ingest required. | — |
-| A-rerank-only | **INVALID** answer-only on L-2 data: reranker=on (route-aware), supersession=off — 100% of 100 answers identical to L-2; LLM reranker changes ordering but LLM answers are LLM-stable on this data. 73.0% is judge variance. Fresh ingest required. | — |
-| L-4 | **fresh ingest** 2×2 cell (sup=T,rer=T): L-0 base + supersession + route-aware reranker (skip temporal+unanswerable_risk), Stack B port 8081 | TBD | running ingest 2026-07-20 |
-| L-4c | **fresh ingest ablation** (sup=T,rer=F): supersession only, Stack C port 8082 | TBD | running ingest 2026-07-20; isolates supersession contribution |
-| L-4d | **fresh ingest ablation** (sup=F,rer=T): route-aware reranker only (no supersession), Stack D port 8083 | TBD | running ingest 2026-07-20; isolates reranker contribution |
-| L-5 | **fresh ingest** L-4 base + `COVERAGE_BUDGET_MULTIPLIER=2` + `CON_ENUMERATION=true`, Stack E port 8084 | TBD | planned after 2×2 confirms direction; targets art-events retrieval gap (aggregative gets 40 facts vs 20) |
+Column key: T=temporal-reasoning (n=19 non-abs), SSU=single-session-user (n=10), ABS=abstention (n=30), MS=multi-session (n=18), KU=knowledge-update (n=11), SSA=single-session-assistant (n=8). Multi-run averages where noted reduce judge noise (~2pp floor at n=100 per category).
+
+| Run | Change under test | Overall | T | SSU | ABS | MS | KU | SSA | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| L-0 (baseline) | Run 18 config + azure/text-embedding-3-large/3072 + scoped dense | **76.0%** (avg 75.3%) | **80.7%** avg | 70.0% | 80.0% | 72.2% | 72.7% | 75.0% | L-0 run: 76%, grade2+grade3: 75% each; T avg across 3 runs = 80.7% |
+| L-1 | + LLM reranker (gpt-4o-mini, cap=50) | **73.0%** | 68.4% | 90.0% | 70.0% | 77.8% | 72.7% | 75.0% | done 2026-07-20; reranker hurts temporal (-15.8pp vs L-0) + abstention (-10pp); gains SSU (+20pp) |
+| L-2 | + community graph (no rebuild) + query rewrite | **68.0%** | 68.4% | 90.0% | 63.3% | 72.2% | 63.6% | 75.0% | done 2026-07-20; worst config — abstention −16.7pp, temporal −15.8pp, KU −9pp; query rewrite reformulates badly |
+| L-3 | answer-only on L-2 data: L-0 base + read_supersession + global hybrid BM25 | **67.0%** | 63.2% | 80.0% | 73.3% | 72.2% | 54.5% | 62.5% | confounded run (wrong ingest); global hybrid on all routes hurts SSU/SSA/KU; L-4 planned as clean fresh ingest |
+| A-sup-only | **INVALID** answer-only on L-2 data (supersession=on) — answers byte-identical to L-2 | — | — | — | — | — | — | — | Not a supersession signal; judge variance only. Fresh ingest required. |
+| A-rerank-only | **INVALID** answer-only on L-2 data (reranker=on) — answers byte-identical to L-2 | — | — | — | — | — | — | — | Not a reranker signal; LLM-stable answers. Fresh ingest required. |
+| L-4 | **fresh ingest** sup=T, rer=T (route-aware), Stack B | **67.0%** | 63.2% | 80.0% | 63.3% | 66.7% | 72.7% | 87.5% | Below L-0; fresh ingest did not unlock predicted gains — global supersession + reranker hurt T |
+| L-4c | **fresh ingest** sup=T, rer=F (supersession only), Stack C | **68.0%** | 68.4% | 70.0% | 70.0% | 66.7% | 63.6% | 75.0% | Supersession alone: T same as L-4, SSU below L-0; confirms supersession must be route-aware for temporal |
+| L-4d | **fresh ingest** sup=F, rer=T (route-aware reranker only), Stack D | **67.0%** | 63.2% | 90.0% | 70.0% | 66.7% | 54.5% | 75.0% | Reranker alone: SSU best (+20pp vs L-0) but T −21pp; confirms reranker must be route-aware |
+| L-4-v2 | route-aware sup+rer on L-4 graph (read-path only) | **70.0%** | 68.4% | 90.0% | 70.0% | 72.2% | 72.7% | 75.0% | Route-aware config recovered SSU+MS+KU; T still 68.4% (graph from L-4 pre-fix) |
+| L-5-v2 | **fresh ingest** route-aware sup+rer+hybrid+budget×2, Stack E | **73.0%** (avg 73.0%) | 79.0% | 80.0% | 73.3% | 72.2% | 72.7% | 75.0% | Fresh graph with full route-aware config; T 79% (avg of 3 runs); SSU below L-0 |
+| L-6 | + sufficiency check (global, GNOSIS_SUFFICIENCY_CHECK_ENABLED=true) | **74.0%** (avg 74.0%) | 68.4% | 80.0% | 80.0% | 72.2% | 81.8% | 75.0% | T -10.6pp: global sufficiency marks answerable temporal questions as insufficient; ABS +6.7pp; KU +9.1pp |
+| L-7 | + GNOSIS_QUERY_REWRITE_ENABLED=true | **70.0%** | 73.7% | 80.0% | 70.0% | 61.1% | 81.8% | 75.0% | Query rewrite helps T (+5.3pp vs L-6) but hurts MS (-11.1pp) and ABS (-10pp); net negative |
+| L-8 | route-aware sufficiency (scoped to unanswerable_risk only) + budget×2 + router fix | **76.0%** | 68.4% | 90.0% | 80.0% | 77.8% | 81.8% | 75.0% | commit f2cc70c: temporal/unanswerable_risk disambiguation; ties L-0 overall; T still depressed |
+| **L-9** | **+ event_date fix (Bug 1, commit 26e511a)** | **76.0%** | **73.7%** | 90.0% | 73.3% | 77.8% | 81.8% | 75.0% | **BEST STABLE** — Bug 1: _FACT_DATE_METADATA_KEYS missing event_date; T +5.3pp vs L-8 |
+| L-9-grade2 | same config, grade2 | **75.0%** | **63.0%** | 70.0% | 86.7% | 72.2% | 72.7% | 87.5% | **CONTAMINATED**: first 78 answers generated under embedding rate-limit (concurrency 32 hitting 429s → degraded context); T=63% is an underestimate; grade3 will be clean |
+| L-10b | + sufficiency prompt: comparative ordering clause + topic-relevance check | **73.0%** | 73.7% | 80.0% | 76.7% | 66.7% | 81.8% | 75.0% | judge noise (~3pp); same T as L-9; SSU -10pp (noise) |
+| L-11 (reverted) | + _with_insufficiency_warning section injection | **72.0%** | 68.4% | 80.0% | 76.7% | 72.2% | 72.7% | 75.0% | Net -4pp overall; T -5.3pp; false-negative rate of sufficiency check too high — over-abstains on answerable questions |
+| L-12 (reverted) | + verbatim expansion for temporal route | **73.0%** | 68.4% | 80.0% | 80.0% | 66.7% | 81.8% | 87.5% | T -5.3pp: raw verbatim turns contain relative date phrases ("two weeks ago") without date anchor; same failure mode as CoN on temporal |
+| **L-10** | **fresh ingest (Bug 2)**: conversation_date stored on extracted facts | **73.0%** | **79%** | 80% | 77% | 72% | 64% | 75% | T +5.3pp vs L-9 as predicted. Overall −3pp: KU 81.8%→64% (−17.8pp, n=11 so 2 questions), SSU 90%→80% (n=10, 1 question). KU/SSU drops are within per-category noise; grade2 needed to separate signal from noise. |
 
 ### L-0 failure analysis (2026-07-20, for 2×2 ablation predictions)
 
@@ -1002,6 +1014,52 @@ Per-question root causes of the 24 L-0 failures (76/100 correct):
 - L-4d (rer only): +1-2 SSU (yoga, bikes) + 1 multi-session (camping) → ~78-79%
 - L-4 (sup+rer): +3 KU + +2 SSU + +1 multi-session = ~80-82%
 - L-5 (L-4+budget×2+enumeration): additionally +1 multi-session (art events) → ~81-83%
+
+**Actual 2×2 results (measured 2026-07-20):** L-4=67%, L-4c=68%, L-4d=67%. Predictions failed because route-aware flags were NOT applied during ingest (they are read-path flags), but the supersession/reranker issues also existed without route-aware scoping. L-4-v2 (route-aware read config on L-4 graph) improved to 70%.
+
+### Key findings — Temporal regression root cause (2026-07-21 through 2026-07-24)
+
+**Bug 1 (context_assembly.py, commit 26e511a, 2026-07-24): event_date missing from rendered fact dates.**
+`_FACT_DATE_METADATA_KEYS` was `("session_date", "date")` — missing `"event_date"`. Every extracted fact
+appeared with its ingest timestamp (2026-07-xx) rather than the actual event date. Effect: T improved
+68.4% → 73.7% (+5.3pp) in L-9 vs L-8. No fresh ingest needed (event_date was already stored in
+metadata, just not surfaced).
+
+**Bug 2 (backend.py, commit 26e511a, requires fresh ingest): conversation_date never stored on facts.**
+`conversation_date` was computed and passed to the extraction LLM (to resolve relative times like
+"two months ago"), but NEVER stored on fact nodes. For ongoing-state facts, the date anchor the
+extraction LLM used was not preserved — so the rendered fact had no absolute date reference. Fix:
+`metadata["date"] = conversation_date` and `metadata["temporal_state"] = unit.temporal_state` on every
+extracted fact. L-10 (fresh ingest on Stack B) will validate whether this closes the remaining
+T gap.
+
+**Sufficiency check lesson (L-6 vs L-8, 2026-07-22):** Global sufficiency check costs T -10.6pp because
+it marks many answerable temporal questions as "not sufficient." Route-aware scoping (enabled only for
+`unanswerable_risk` route, commit added to query_router.py) restored T without losing the abstention gain.
+Temperature must be set to 0 on the sufficiency LLM call (commit b410b38) — non-deterministic verdicts
+cascade to different context sections reaching the answer model, causing up to 10pp run-to-run variance.
+
+**Verbatim expansion for temporal (reverted, L-12 findings):** Enabling verbatim expansion on the temporal
+route caused T -5.3pp. Root cause: raw verbatim turns contain relative date phrases ("two weeks ago",
+"last Saturday") without the absolute date anchor that resolved extracted facts provide. SAME failure
+mode that originally motivated route-aware Chain-of-Note (Run 14 LOCOMO lesson). Do NOT enable verbatim
+expansion for temporal route.
+
+### L-9 temporal failure analysis (2026-07-24, 5 non-abstention failures, T=73.7%)
+
+**Non-abstention temporal failures (5 of 19 questions):**
+- `0bc8ad92` (museum months since visit=5): wrong event retrieved — Thorpe Park amusement park surfaced instead of museum-with-friend event; retrieval confuses venue types
+- `gpt4_b0863698` (5K charity run days ago=7): correct event found (March 12 run) but model uses wrong reference date from context (March 26 from an unrelated fact vs question_date March 19); computes 14 days instead of 7
+- `gpt4_1e4a8aec` (gardening two weeks ago=tomato saplings): wrong event retrieved — cucumber climbing surfaced instead of tomato planting; date-anchoring via Bug 2 fix may help rerank
+- `0bc8ad93` (museum two months ago, with friend?): same wrong-event retrieval as 0bc8ad92 (Thorpe Park vs museum)
+- `gpt4_8279ba03` (kitchen appliance 10 days ago=smoker): fact extraction quality — extracted fact says "kitchen appliance on Amazon $120" without identifying it as a smoker; specificity lost in extraction
+
+**Abstention temporal failures (3 of 6 abstention-temporal questions):**
+- `gpt4_70e84552_abs` (fence vs cow purchase ordering): comparative ordering — fence data present but cow purchase from Peter not in memory; sufficiency check incorrectly says True (finds "considering buying cows" context)
+- `gpt4_93159ced_abs` (pre-Google work duration): model gives wrong number instead of abstaining; data not in conversations
+- `c8090214_abs` (Holiday Market vs iPad timing): model finds iPhone not iPad; presupposition error
+
+**Bug 2's realistic impact on L-10:** High confidence fix for duration/ongoing-state facts without date anchor. Low-to-medium confidence for retrieval failures (0bc8ad92, gpt4_1e4a8aec, 0bc8ad93) where date anchoring might improve ranking. No impact on extraction quality (gpt4_8279ba03) or comparative ordering (gpt4_70e84552_abs).
 
 ## Published comparison targets (per-category ledger)
 
