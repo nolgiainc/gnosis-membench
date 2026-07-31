@@ -949,7 +949,8 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | 18 | **Mem0** | **67.6%** | — | — | — | TiMem paper (3rd-party, GPT-4o). **Self-reported "94.4%" is unverified — all 3rd-party evals show 49–68%.** |
 | — | Oracle (full-context) | **60.2%** | — | — | — | Original LME paper; same-model (GPT-4o) judge may inflate |
 | — | gnosis L-0 | **76.0%** | 72.7% | 72.2% | 84.2% | 100-Q subset; Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
-| — | gnosis L-21 | *in progress* | — | — | — | Full 500-Q; gpt-4o judge; started 2026-07-29 |
+| — | gnosis L-21 | *(ingest-only)* | — | — | — | Full 500-Q ingest into gnosis established; no answer/grade run (gpt-4o judge requires inference key) |
+| — | **gnosis L-23** | **69.8%** | **23.6%** | **73.6%** | **82.7%** | Full 500-Q; Claude-Sonnet-4-6 backbone + Claude judge; 2026-07-31 |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -960,15 +961,23 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 - single-session-preference 50.0% (weakest; n=4)
 - single-session-user 70.0%, single-session-assistant 75.0%
 
-**Gnosis gap analysis (post L-0, 100-Q subset; full-500 L-21 score pending):**
-- 76.0% overall vs Zep 71.2% — gnosis leads Zep by 4.8 pp on this 100-Q config
-- 76.0% vs mem0 67.6% (3rd-party verified) — gnosis leads mem0 by 8.4 pp; mem0's self-reported "94.4%" is unverified across all third-party evaluations (see leaderboard table above)
-- 76.0% vs oracle 60.2% (original LME paper) — gnosis exceeds the full-context ceiling
-- 76.0% vs hindsight 94.6% (independently verified) — 18.6 pp gap to verified SOTA
-- Temporal-reasoning strong (84.2%) as predicted from LOCOMO temporal results
-- Knowledge-update 72.7% (better than pre-L-0 smoke test suggested; MERGE patch may have helped)
-- single-session-preference 50.0% is the clearest weakness (n=4, small but notable)
-- *Note: 100-Q subset numbers are directionally valid but full-500 L-21 may show different absolute values*
+**Gnosis L-23 result (2026-07-31, full 500-Q, Claude-Sonnet-4-6 backbone + judge):**
+- overall 69.8% (500/500 questions answered and graded)
+- abstention 100.0% (n=30) — perfect score
+- single-session-preference 96.7% (n=30) — strong
+- single-session-user 87.5% (n=64) — strong
+- temporal-reasoning 82.7% (n=127) — strong; consistent with L-0 100-Q result
+- multi-session 73.6% (n=121) — solid
+- single-session-assistant 41.1% (n=56) — **gap**: assistant-turn content not well indexed
+- knowledge-update 23.6% (n=72) — **critical gap**: gnosis retrieves stale facts instead of most recent updates
+- *Note: L-23 uses Claude as both backbone and judge; L-0 used gpt-4o judge. Not directly comparable to 3rd-party numbers above.*
+
+**Gnosis gap analysis (L-23, full 500-Q, Claude judge):**
+- 69.8% overall vs Zep 71.2% (gpt-4o judge) — roughly comparable; judge differences make exact comparison unreliable
+- 69.8% vs mem0 67.6% (3rd-party verified) — gnosis comparable to verified mem0
+- Knowledge-update (23.6%) is the **primary gap**: L-0 100-Q subset showed 72.7% KU; full-500 shows 23.6% — the 100-Q subset was not representative of the full KU distribution. Chronos 100% KU fix: explicit event calendar + temporal validity intervals (L-24 target).
+- Single-session-assistant (41.1%) gap: assistant-turn memories likely under-extracted by edu-v1 prompts (which focus on user facts). Fix: extend extraction to assistant-turn commitments and stated facts.
+- Strong categories (abstention 100%, SSP 96.7%, SSU 87.5%) confirm retrieval + CoN works well for user-fact recall.
 
 **Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
