@@ -3,8 +3,16 @@
 LongMemEval_S's knowledge-update (KU) category tests whether a system returns the
 *current* value of a fact that has changed over the course of several sessions
 ("I used to work at X, but I just started a new job at Y"). This is gnosis's
-confirmed weakest axis: the LME_S smoke run (3 instances) demonstrated the system
-returns the superseded value rather than the updated one.
+confirmed weakest axis.
+
+**L-23 confirmed result (2026-07-31): 23.6% on 72 KU questions (full-500 run).**
+
+For comparison: Zep 83.3%, Chronos 100%, mem0 not published. The gap to Zep is
+~60 percentage points — the single largest improvement opportunity in the L-23 profile.
+
+*Earlier measurements:* A 100-question stratified subset showed ~72.7% KU. That figure
+was not representative — the subset's 17 KU instances happened to be the easier cases.
+The full-500 run at 23.6% (72 instances) is the authoritative number.
 
 ---
 
@@ -117,22 +125,30 @@ change (no schema work).
 
 ## Membench measurement protocol for KU
 
-LongMemEval_S's knowledge-update subset has 17 instances in the frozen 100-instance
-protocol. To measure KU accuracy:
+### Confirmed L-23 baseline (2026-07-31)
 
-1. Run the frozen LME_S 100-instance protocol.
-2. Filter graded results by question type `knowledge_update*`.
-3. Report per-type accuracy separately (the frozen subset has 17 KU instances).
+- **Overall KU accuracy: 23.6%** (17/72 correct, Claude-Sonnet-4-6 backbone + judge)
+- Full 500-question run; 72 KU instances (question types: `knowledge-update` and `knowledge-update_abs`)
+- Failure mode confirmed: gnosis returns the superseded/earlier value instead of the
+  current one. The more recent fact is present in the graph but ranks lower than the
+  older, semantically-similar fact at retrieval time.
 
-For targeted KU development:
-- Use the full LME_S 500 dataset's KU subset (~78 instances) for faster iteration.
-- The smoke test already confirms the failure mode: report `smoke3` baseline as 0/1
-  (one KU instance, returned superseded value).
+### Protocol for future KU runs
 
-**Known caveat:** LME_S KU accuracy is heavily reader-model dependent. With identical
-retrieval, KU ranged 58.4%–89.6% across reader models in the Memoria/MatrixOrigin
-study. Measure with both gpt-5.5 and a capable open-weights model to separate
-retrieval quality from reader quality.
+1. Run the full LME_S 500-question suite (or at minimum the 72 KU instances).
+2. Filter `answers_context.jsonl` by `category == "knowledge-update"` (includes both
+   standard and abstention variants).
+3. Compare against L-23 baseline (17/72 = 23.6%).
+
+For rapid iteration during KU-targeted development:
+- Extract the 72 KU question IDs from the dataset: `question_type in ("knowledge_update", "knowledge_update_abs")`
+- Run ingest + retrieval only for those conversations (significant cost reduction)
+- Use the Claude backbone approach (no inference key needed — runs via Claude Desktop subagents)
+
+**Reader-model note:** LME_S KU accuracy is known to be reader-model dependent (Memoria
+study: 58.4%–89.6% range across models with identical retrieval). L-23's 23.6% uses
+Claude-Sonnet-4-6. After implementing SUPERSEDES edges (L-24), re-run with the same
+model to isolate retrieval improvement from reader effect.
 
 ---
 

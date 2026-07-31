@@ -1,19 +1,33 @@
 # gnosis-membench
 
-Benchmark harness for the [gnosis memory service](https://github.com/nolgiainc/gnosis).
+Benchmark harness for the [gnosis memory service](https://github.com/blackflame007/gnosis).
 Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answer →
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current competitive standing (Run 23, full-LOCOMO, 2026-07-04):**
-excl-adv J 66.9–68.9 at parity with mem0 (66.88), leading on single-hop, temporal,
-adversarial, and multi-hop F1. Open-domain is the confirmed gap (J 29.2 vs
-frontier ~74–77).
+**Current standing — LongMemEval_S L-23 (full 500-Q, 2026-07-31):**
+Claude-Sonnet-4-6 backbone + Claude judge via gnosis context retrieval.
 
-**Primary optimization target: LongMemEval_S** (500 questions, stable gpt-4o judge,
-5 ability axes including knowledge-update and abstention that LOCOMO lacks). Baseline
-L-0 in progress. See `RESULTS.md` for the full run ledger including the July 2026
-LME_S competitive context.
+| Category | L-23 | Notes |
+|---|---|---|
+| abstention | 100.0% (n=30) | Perfect recall of unanswerable questions |
+| single-session-preference | 96.7% (n=30) | Strong personalization recall |
+| single-session-user | 87.5% (n=64) | Strong user-stated fact recall |
+| temporal-reasoning | 82.7% (n=127) | Solid; Chronos SOTA 95.5% |
+| multi-session | 73.6% (n=121) | Competitive; Chronos SOTA 88.7% |
+| single-session-assistant | 41.1% (n=56) | Gap: assistant-stated facts under-indexed |
+| knowledge-update | 23.6% (n=72) | **Primary gap** — stale facts returned; Zep 83.3% |
+| **Overall** | **69.8%** (500 Q) | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
+
+**Primary optimization targets:**
+1. **Knowledge-update (23.6%)** — SUPERSEDES edges + event calendar. See [`docs/knowledge-update.md`](docs/knowledge-update.md).
+2. **Single-session-assistant (41.1%)** — edu-v1 extractor misses assistant-stated commitments; needs extractor prompt update.
+
+**LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
+mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
+remains the LOCOMO gap (J 29.2 vs frontier ~74–77).
+
+See `RESULTS.md` for the full run ledger.
 
 ## What the harness measures
 
@@ -37,11 +51,12 @@ hypothesis ----grade---> benchmark scorer + LLM judge
 
 Do not mix scopes when comparing scores:
 
-| Scope | Input | Frozen protocol |
+| Scope | Input | Protocol / notes |
 |---|---|---|
 | LOCOMO subset-3 gate | 3 of 10 conversations, 497 Q | Dev regression gate only; excl-adv ~71 reproducible level; NOT a competitive claim |
 | LOCOMO full (Run 23) | All 10 conversations, 1,986 Q (1,540 non-adversarial) | Competitor comparison; Run 18 config; two judges (gpt-5.5 / gpt-5.4-mini) |
-| LongMemEval_S frozen-100 | 100-instance stratified subset; IDs in [`data/longmemeval_s_subset100.txt`](data/longmemeval_s_subset100.txt) | Primary optimization loop; gpt-5.5 judge; gemini-embedding-001/3072 |
+| LME_S frozen-100 | 100-instance stratified subset; IDs in [`data/longmemeval_s_subset100.txt`](data/longmemeval_s_subset100.txt) | Fast iteration; gpt-5.5 judge; gemini-embedding-001/3072 |
+| **LME_S full-500 (L-23)** | All 500 questions | **Competitive claim**; Claude-Sonnet-4-6 backbone + judge; 2026-07-31 |
 
 ## Setup
 
@@ -142,13 +157,18 @@ uv run membench run \
   --out ../results/locomo/frozen-subset3
 ```
 
-## Queued experiments
+## Experiment ledger
 
-| Run | gnosis config | Target | Notes |
+| Run | gnosis config | Score | Status |
 |---|---|---|---|
-| L-0 (baseline) | run18 + gemini/3072 + scoped dense | LME_S overall | Ingesting |
-| L-1 | + reranker (run24.yaml) | LME_S retrieval bottleneck | Reranker has no LME_S result yet |
-| L-2 | + community graph + multi-query rewrite (run25.yaml) | LME_S open-domain + multi-hop | Community graph targets the ~47 pp gap vs Zep |
+| L-21 (ingest-only) | run18 + gemini/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
+| **L-23** | L-21 ingest + Claude-Sonnet-4-6 backbone + Claude judge | **69.8%** | Complete; 2026-07-31 |
+| L-24 | + SUPERSEDES edges + event calendar (KU fix) | — | Queued — primary KU gap target |
+| L-25 | + SSA extractor update (assistant-stated facts) | — | Queued — secondary gap |
+| L-26 | + reranker (run24.yaml) | — | Queued — retrieval bottleneck |
+| L-27 | + community graph + multi-query rewrite (run25.yaml) | — | Queued — open-domain + multi-hop |
+
+See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 
 ## Costs and concurrency
 
