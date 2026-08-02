@@ -128,7 +128,8 @@ change (no schema work).
 ### Confirmed L-23 baseline (2026-07-31)
 
 - **Overall KU accuracy: 23.6%** (17/72 correct, Claude-Sonnet-4-6 backbone + judge)
-- Full 500-question run; 72 KU instances (question types: `knowledge-update` and `knowledge-update_abs`)
+- Full 500-question run; 72 KU instances (`question_type == "knowledge-update"`, including
+  the abstention variants, whose `question_id` ends in `_abs`)
 - Failure mode confirmed: gnosis returns the superseded/earlier value instead of the
   current one. The more recent fact is present in the graph but ranks lower than the
   older, semantically-similar fact at retrieval time.
@@ -141,7 +142,9 @@ change (no schema work).
 3. Compare against L-23 baseline (17/72 = 23.6%).
 
 For rapid iteration during KU-targeted development:
-- Extract the 72 KU question IDs from the dataset: `question_type in ("knowledge_update", "knowledge_update_abs")`
+- Extract the 72 KU question IDs from the dataset: `question_type == "knowledge-update"`
+  (hyphenated, as in the raw LongMemEval JSON and `load_longmemeval`); the abstention
+  variants are the subset of those whose `question_id` ends in `_abs`
 - Run ingest + retrieval only for those conversations (significant cost reduction)
 - Use the Claude backbone approach (no inference key needed — runs via Claude Desktop subagents)
 

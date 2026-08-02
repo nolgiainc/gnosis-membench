@@ -150,7 +150,8 @@ def ingest(
     """Ingest all conversations, pooling sessions ACROSS conversations.
 
     A conversation is recorded as done (resume point) only once every one of
-    its sessions has been written.
+    its sessions has been written successfully. If any session fails, the
+    conversation stays out of the resume state so a later run retries it.
     """
     state = _load_state(state_path)
     done: set[str] = set(state.get("done", []))
@@ -165,6 +166,7 @@ def ingest(
 
     lock = threading.Lock()
     remaining = {conv.conv_id: len(conv.sessions) for conv in pending}
+    failed: set[str] = set()
 
     def mark_done(conv_id: str) -> None:
         done.add(conv_id)
@@ -174,7 +176,10 @@ def ingest(
     def session_finished(conv_id: str) -> None:
         with lock:
             remaining[conv_id] -= 1
-            if remaining[conv_id] <= 0:
+            # A conversation with a failed session is left out of the resume
+            # state: marking it done would make later resumes skip it and grade
+            # against incomplete memory.
+            if remaining[conv_id] <= 0 and conv_id not in failed:
                 mark_done(conv_id)
 
     tasks: list[tuple[Conversation, Session]] = []
@@ -191,7 +196,9 @@ def ingest(
         try:
             turns = _ingest_session(gnosis, cfg, conv, session, inline_dates=inline_dates, log=log)
         except GnosisError as exc:
-            log(f"  SKIP {conv.conv_id}/{session.session_id}: {str(exc)[:200]}")
+            log(f"  FAILED {conv.conv_id}/{session.session_id}: {str(exc)[:200]}")
+            with lock:
+                failed.add(conv.conv_id)
             turns = 0
         session_finished(conv.conv_id)
         return turns
@@ -202,8 +209,16 @@ def ingest(
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
             total_turns = sum(pool.map(one, tasks))
 
+    if failed:
+        log(
+            f"WARNING: {len(failed)} conversation(s) had failed sessions and were NOT "
+            f"recorded as ingested: {', '.join(sorted(failed))}. Their memory is "
+            f"incomplete — re-run ingest before trusting these scores."
+        )
+
     return {
         "conversations": len(conversations),
+        "conversations_failed": sorted(failed),
         "turns_written": total_turns,
         "elapsed_s": round(time.time() - started, 1),
     }

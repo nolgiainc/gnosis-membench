@@ -55,7 +55,7 @@ Do not mix scopes when comparing scores:
 |---|---|---|
 | LOCOMO subset-3 gate | 3 of 10 conversations, 497 Q | Dev regression gate only; excl-adv ~71 reproducible level; NOT a competitive claim |
 | LOCOMO full (Run 23) | All 10 conversations, 1,986 Q (1,540 non-adversarial) | Competitor comparison; Run 18 config; two judges (gpt-5.5 / gpt-5.4-mini) |
-| LME_S frozen-100 | 100-instance stratified subset; IDs in [`data/longmemeval_s_subset100.txt`](data/longmemeval_s_subset100.txt) | Fast iteration; gpt-5.5 judge; gemini-embedding-001/3072 |
+| LME_S frozen-100 | 100-instance stratified subset; IDs in [`data/longmemeval_s_subset100.txt`](data/longmemeval_s_subset100.txt) | Fast iteration; gpt-5.5 judge; azure/openai/text-embedding-3-large at 3072 dims |
 | **LME_S full-500 (L-23)** | All 500 questions | **Competitive claim**; Claude-Sonnet-4-6 backbone + judge; 2026-07-31 |
 
 ## Setup
@@ -74,6 +74,12 @@ curl -fsS http://localhost:8080/ready
 Use `-p membench-local` for state isolation. A new project name gives a fresh Neo4j
 store. Tear down with `docker compose -p membench-local -f compose.yaml down -v`.
 
+> **Local-only warning:** `stack/compose.yaml` publishes Neo4j (7474/7687) and gnosis
+> (8080) on all host interfaces and ships placeholder credentials (`membench-token`,
+> `membench-neo4j`, the operator token). Never expose this stack on a shared, public,
+> or production network. Bind the host side of those ports to `127.0.0.1` with a Compose
+> override and replace every default credential before any non-disposable run.
+
 ## Running benchmarks
 
 All commands run from `membench/`. Dataset downloads require network access.
@@ -83,6 +89,18 @@ cd membench
 uv sync
 uv run membench download --benchmark locomo
 uv run membench download --benchmark longmemeval_s
+```
+
+`membench` reads its configuration from the process environment; it does **not** load
+`stack/.env` (that file configures the Compose services only). Export the answer/judge
+endpoint and models in the shell that runs `uv run membench`, otherwise the harness
+falls back to the public OpenAI default with an empty key:
+
+```bash
+export OPENAI_BASE_URL=https://inference-api.nvidia.com/v1   # or your endpoint
+export OPENAI_API_KEY="$INFERENCE_API_KEY"
+export MEMBENCH_ANSWER_MODEL=azure/openai/gpt-4o
+export MEMBENCH_JUDGE_MODEL=azure/openai/gpt-4o
 ```
 
 ### LOCOMO subset-3 gate (internal regression, ~71 J)
@@ -110,6 +128,13 @@ GNOSIS_EMBEDDING_DIMENSIONS=1024
 
 ### LongMemEval_S frozen-100 (primary optimization target)
 
+The frozen ID list is tracked, but the subset JSON is gitignored. Regenerate it from
+`longmemeval_s_cleaned.json` (written by the download above) before the first run:
+
+```bash
+uv run python scripts/make_lme_subset100.py
+```
+
 ```bash
 uv run membench run \
   --benchmark longmemeval_s \
@@ -123,7 +148,7 @@ Additional `stack/.env` for LME_S (append to LOCOMO flags above, replacing
 embedder):
 
 ```dotenv
-GNOSIS_EMBEDDING=gemini-embedding-001
+GNOSIS_EMBEDDING=openai/azure/openai/text-embedding-3-large
 GNOSIS_EMBEDDING_DIMENSIONS=3072
 GNOSIS_SCOPED_DENSE_RETRIEVAL_ENABLED=true
 GNOSIS_DENSE_SCOPE_POOL=10000
