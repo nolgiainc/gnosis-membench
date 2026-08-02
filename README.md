@@ -186,7 +186,7 @@ uv run membench run \
 
 | Run | gnosis config | Score | Status |
 |---|---|---|---|
-| L-21 (ingest-only) | run18 + gemini/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
+| L-21 (ingest-only) | run18 + text-embedding-3-large/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
 | **L-23** | L-21 ingest + Claude-Sonnet-4-6 backbone + Claude judge | **69.8%** | Complete; 2026-07-31 |
 | L-24 | + SUPERSEDES edges + event calendar (KU fix) | — | Queued — primary KU gap target |
 | L-25 | + SSA extractor update (assistant-stated facts) | — | Queued — secondary gap |
@@ -261,6 +261,7 @@ output for all flags.
 
 Each run directory contains:
 - `ingest_state.json` — completed conversation IDs (for resume)
+- `ingest_state_adds.jsonl` — adds already written, skipped when a conversation is retried
 - `answers_<condition>.jsonl` — retrieved context and answer records
 - `graded_<condition>.jsonl` — scores and judge responses
 - `results.json` — run settings and aggregate metrics

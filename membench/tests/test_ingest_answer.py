@@ -127,6 +127,51 @@ def test_ingest_add_failure_raises_after_final_attempt(cfg, lme_conversations, m
         ingest.ingest_conversation(DeadGnosis(), cfg, conv, log=lambda _: None)  # type: ignore[arg-type]
 
 
+def test_ingest_retry_after_failed_session_does_not_replay_successful_adds(
+    cfg, lme_conversations, tmp_path, monkeypatch
+):
+    """A resume re-sends only the adds that never landed (add_memory is not idempotent)."""
+    from dataclasses import replace
+
+    from membench.gnosis import GnosisError
+
+    monkeypatch.setattr(ingest, "ADD_RETRY_BACKOFF_S", 0.0)
+    conv = lme_conversations[0]  # 2 sessions x 2 turns
+    # widen s2 to two turn-pairs so intra-session replay is observable too
+    s1, s2 = conv.sessions
+    conv = replace(conv, sessions=(s1, replace(s2, turns=s2.turns + s2.turns)))
+    state = tmp_path / "ingest_state.json"
+
+    class PartialGnosis:
+        """Fails only the second turn-pair of session s2."""
+
+        def __init__(self):
+            self.adds: list[tuple[str, int]] = []
+            self.fail = True
+
+        def add_memory(self, scope, messages, *, metadata=None):
+            key = (metadata["session_id"], metadata["turn_index"])
+            self.adds.append(key)
+            if self.fail and key == ("s2", 2):
+                raise GnosisError("POST /v1/memories -> 500: extractor emitted invalid JSON")
+            return []
+
+    gnosis = PartialGnosis()
+    summary = ingest.ingest(gnosis, cfg, [conv], state, log=lambda _: None)  # type: ignore[arg-type]
+    assert summary["conversations_failed"] == ["mini_1"]
+    done = json.loads(state.read_text()).get("done", []) if state.exists() else []
+    assert done == []
+    assert sorted(set(gnosis.adds)) == [("s1", 0), ("s2", 0), ("s2", 2)]
+
+    gnosis = PartialGnosis()
+    gnosis.fail = False
+    summary = ingest.ingest(gnosis, cfg, [conv], state, log=lambda _: None)  # type: ignore[arg-type]
+    # only the add that never landed is retried; the two successful ones are not replayed
+    assert gnosis.adds == [("s2", 2)]
+    assert summary["conversations_failed"] == []
+    assert json.loads(state.read_text())["done"] == ["mini_1"]
+
+
 def test_ingest_pools_sessions_across_conversations(
     gnosis_client, gnosis_transport, cfg, lme_conversations, tmp_path
 ):

@@ -23,7 +23,11 @@ just the current one — with many small conversations (LongMemEval: one
 conversation per question) a per-conversation pool would drain to a straggler
 tail at every conversation boundary.
 
-Ingest is resumable: completed conversation ids are recorded in a state file.
+Ingest is resumable at two levels: completed conversation ids are recorded in
+the state file (the resume point a run reports), and every individual add that
+landed is appended to a sidecar ledger. ``add_memory`` has no idempotency key,
+so the ledger is what keeps a retried conversation from re-sending adds that
+already succeeded and duplicating memories.
 """
 
 from __future__ import annotations
@@ -44,11 +48,48 @@ TURNS_PER_ADD = 2
 
 # Extraction-mode adds fail sporadically (the extractor LLM occasionally emits
 # invalid JSON -> gnosis 500s that one add). A dropped add silently loses the
-# turn-pair AND poisons resume (conversation-level state would re-ingest the
-# conversation's already-written sessions as duplicates), so retry before
-# giving up. Deterministic failures still raise after the last attempt.
+# turn-pair, so retry before giving up. Deterministic failures still raise
+# after the last attempt; the conversation then stays out of the resume state
+# and its already-written adds are skipped on the retry via the add ledger.
 ADD_ATTEMPTS = 3
 ADD_RETRY_BACKOFF_S = 2.0
+
+
+class AddLedger:
+    """Append-only record of the turn-pair adds that already landed in gnosis.
+
+    Conversation-level resume state alone is not safe: when one session of a
+    conversation fails, the conversation must stay out of ``done`` so a later
+    run retries it, but ``add_memory`` carries no idempotency key, so a naive
+    retry re-sends every add that already succeeded and duplicates memories.
+    Each successful add is therefore appended here (one JSON line per add,
+    which is O(1) per add, unlike rewriting the state file) and skipped on the
+    retry.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._lock = threading.Lock()
+        self._done: set[str] = set()
+        if path.exists():
+            self._done = {line for line in path.read_text().splitlines() if line}
+
+    @staticmethod
+    def key(conv_id: str, session_id: str, turn_index: int) -> str:
+        # json encoding keeps the key a single, unambiguous line for any ids.
+        return json.dumps([conv_id, session_id, turn_index], separators=(",", ":"))
+
+    def written(self, key: str) -> bool:
+        return key in self._done
+
+    def record(self, key: str) -> None:
+        with self._lock:
+            if key in self._done:
+                return
+            self._done.add(key)
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as handle:
+                handle.write(f"{key}\n")
 
 
 def user_id_for(conv: Conversation) -> str:
@@ -73,12 +114,23 @@ def _ingest_session(
     *,
     inline_dates: bool,
     log: Callable[[str], None],
+    ledger: AddLedger | None = None,
 ) -> int:
-    """Ingest one session's turns as ordered turn-pair adds; returns turns written."""
+    """Ingest one session's turns as ordered turn-pair adds; returns turns written.
+
+    Turn-pairs already recorded in ``ledger`` (a previous run wrote them) are
+    skipped rather than replayed, and are not counted as written.
+    """
     scope = session_scope(cfg, conv, session.session_id)
     turns = list(session.turns)
+    written = 0
+    replayed = 0
     for start in range(0, len(turns), TURNS_PER_ADD):
         pair = turns[start : start + TURNS_PER_ADD]
+        key = AddLedger.key(conv.conv_id, session.session_id, start)
+        if ledger is not None and ledger.written(key):
+            replayed += len(pair)
+            continue
         messages: list[dict[str, str]] = []
         for turn in pair:
             content = turn.content
@@ -94,8 +146,12 @@ def _ingest_session(
         if session.date:
             metadata["session_date"] = session.date
         _add_with_retry(gnosis, scope, messages, metadata, log=log)
-    log(f"  {conv.conv_id} / {session.session_id}: {len(turns)} turns")
-    return len(turns)
+        if ledger is not None:
+            ledger.record(key)
+        written += len(pair)
+    suffix = f" ({replayed} already written, skipped)" if replayed else ""
+    log(f"  {conv.conv_id} / {session.session_id}: {written} turns{suffix}")
+    return written
 
 
 def _add_with_retry(
@@ -151,8 +207,11 @@ def ingest(
 
     A conversation is recorded as done (resume point) only once every one of
     its sessions has been written successfully. If any session fails, the
-    conversation stays out of the resume state so a later run retries it.
+    conversation stays out of the resume state so a later run retries it —
+    and that retry re-sends only the adds that never landed, because every
+    successful add is recorded in the sidecar ledger next to ``state_path``.
     """
+    ledger = AddLedger(add_ledger_path(state_path))
     state = _load_state(state_path)
     done: set[str] = set(state.get("done", []))
     started = time.time()
@@ -194,7 +253,9 @@ def ingest(
     def one(task: tuple[Conversation, Session]) -> int:
         conv, session = task
         try:
-            turns = _ingest_session(gnosis, cfg, conv, session, inline_dates=inline_dates, log=log)
+            turns = _ingest_session(
+                gnosis, cfg, conv, session, inline_dates=inline_dates, log=log, ledger=ledger
+            )
         except GnosisError as exc:
             log(f"  FAILED {conv.conv_id}/{session.session_id}: {str(exc)[:200]}")
             with lock:
@@ -213,7 +274,8 @@ def ingest(
         log(
             f"WARNING: {len(failed)} conversation(s) had failed sessions and were NOT "
             f"recorded as ingested: {', '.join(sorted(failed))}. Their memory is "
-            f"incomplete — re-run ingest before trusting these scores."
+            f"incomplete — re-run ingest (it resends only the adds that never "
+            f"landed) before trusting these scores."
         )
 
     return {
@@ -222,6 +284,11 @@ def ingest(
         "turns_written": total_turns,
         "elapsed_s": round(time.time() - started, 1),
     }
+
+
+def add_ledger_path(state_path: Path) -> Path:
+    """Sidecar ledger path (``ingest_state.json`` -> ``ingest_state_adds.jsonl``)."""
+    return state_path.with_name(f"{state_path.stem}_adds.jsonl")
 
 
 def _load_state(path: Path) -> dict[str, Any]:
