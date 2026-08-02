@@ -1,6 +1,6 @@
 # gnosis-membench
 
-Benchmark harness for the [gnosis memory service](https://github.com/blackflame007/gnosis).
+Benchmark harness for the [gnosis memory service](https://github.com/nolgiainc/gnosis).
 Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answer →
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.

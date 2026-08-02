@@ -117,7 +117,7 @@ uv run membench run \
 All models route through `https://inference-api.nvidia.com/v1` — an OpenAI-compatible
 LiteLLM proxy covering 224 models across AWS Bedrock, GCP Vertex, Azure OpenAI,
 OpenAI direct, and NVIDIA NIM. Auth: `Authorization: Bearer $INFERENCE_API_KEY`
-(set in `~/.dotfiles/zsh/.config/zsh/zsh-secrets`).
+(export `INFERENCE_API_KEY` from your shell environment or secret manager).
 
 **Tested model selections (2026-07-17):**
 
@@ -135,7 +135,7 @@ OpenAI direct, and NVIDIA NIM. Auth: `Authorization: Bearer $INFERENCE_API_KEY`
 
 Quick environment setup for a benchmark run:
 ```bash
-source ~/.dotfiles/zsh/.config/zsh/zsh-secrets
+# INFERENCE_API_KEY must already be exported in your shell environment
 export OPENAI_BASE_URL=https://inference-api.nvidia.com/v1
 export OPENAI_API_KEY=$INFERENCE_API_KEY
 export MEMBENCH_ANSWER_MODEL=azure/openai/gpt-4o
