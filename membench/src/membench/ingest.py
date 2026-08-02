@@ -188,7 +188,11 @@ def ingest(
 
     def one(task: tuple[Conversation, Session]) -> int:
         conv, session = task
-        turns = _ingest_session(gnosis, cfg, conv, session, inline_dates=inline_dates, log=log)
+        try:
+            turns = _ingest_session(gnosis, cfg, conv, session, inline_dates=inline_dates, log=log)
+        except GnosisError as exc:
+            log(f"  SKIP {conv.conv_id}/{session.session_id}: {str(exc)[:200]}")
+            turns = 0
         session_finished(conv.conv_id)
         return turns
 
