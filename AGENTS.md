@@ -98,7 +98,9 @@ uv run membench run \
 ### Resume an interrupted run
 
 Pass `--stages answer,grade` (or `grade` alone) to skip already-completed stages.
-The `ingest_state.json` in `--out` tracks completed session IDs.
+The `ingest_state.json` in `--out` tracks completed conversation IDs, and
+`ingest_state_adds.jsonl` records every add that landed so a retried
+conversation does not replay them.
 
 ```bash
 uv run membench run \
@@ -202,7 +204,8 @@ results/longmemeval_s/frozen-100/
   results.json          # aggregate scores + run config
   graded_context.jsonl  # per-question scores
   answers_context.jsonl # retrieved context + answer text
-  ingest_state.json     # completed session IDs (for resume)
+  ingest_state.json     # completed conversation IDs (for resume)
+  ingest_state_adds.jsonl  # adds already written (skipped on retry)
 ```
 
 Key score: `lme_overall_accuracy` (and per-type: `knowledge_update`, `multi_session`,
