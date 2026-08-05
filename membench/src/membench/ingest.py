@@ -40,7 +40,7 @@ from .config import Config
 from .datasets import Conversation, Session
 from .gnosis import GnosisClient, GnosisError
 
-TURNS_PER_ADD = 2
+TURNS_PER_ADD = 20
 
 # Extraction-mode adds fail sporadically (the extractor LLM occasionally emits
 # invalid JSON -> gnosis 500s that one add). A dropped add silently loses the

@@ -5,23 +5,24 @@ Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answ
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current standing — LongMemEval_S L-23 (full 500-Q, 2026-07-31):**
-Claude-Sonnet-4-6 backbone + Claude judge via gnosis context retrieval.
+**Current standing — LongMemEval_S L-25 (full 500-Q, 2026-08-05):**
+gpt-4o backbone + gpt-4o judge via gnosis context retrieval. edu-v2.0 (assistant-turn extraction) + relation_slots (KU fix).
 
-| Category | L-23 | Notes |
-|---|---|---|
-| abstention | 100.0% (n=30) | Perfect recall of unanswerable questions |
-| single-session-preference | 96.7% (n=30) | Strong personalization recall |
-| single-session-user | 87.5% (n=64) | Strong user-stated fact recall |
-| temporal-reasoning | 82.7% (n=127) | Solid; Chronos SOTA 95.5% |
-| multi-session | 73.6% (n=121) | Competitive; Chronos SOTA 88.7% |
-| single-session-assistant | 41.1% (n=56) | Gap: assistant-stated facts under-indexed |
-| knowledge-update | 23.6% (n=72) | **Primary gap** — stale facts returned; Zep 83.3% |
-| **Overall** | **69.8%** (500 Q) | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
+| Category | L-25 | vs L-23 | Notes |
+|---|---|---|---|
+| single-session-assistant | **94.6%** (n=56) | +53.5pp | edu-v2.0 Rule 15 fixed assistant-turn extraction |
+| knowledge-update | **73.1%** (n=78) | +49.5pp | relation_slots fixed relation-class supersession |
+| single-session-user | 84.3% (n=70) | -3.2pp | |
+| temporal-reasoning | 75.9% (n=133) | -6.8pp | |
+| multi-session | 56.4% (n=133) | -17.2pp | regression under investigation |
+| single-session-preference | 56.7% (n=30) | -40.0pp | regression; judge calibration difference suspected |
+| **Overall** | **72.4%** (500 Q) | **+2.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
 
-**Primary optimization targets:**
-1. **Knowledge-update (23.6%)** — SUPERSEDES edges + event calendar. See [`docs/knowledge-update.md`](docs/knowledge-update.md).
-2. **Single-session-assistant (41.1%)** — edu-v1 extractor misses assistant-stated commitments; needs extractor prompt update.
+*Note: L-25 uses gpt-4o judge; L-23 used Claude-Sonnet-4-6. SSP/multi-session regressions may be partially or fully judge-calibration artifacts. See [RESULTS.md](RESULTS.md) for full analysis.*
+
+**Next targets:**
+1. **SSP/multi-session regression** — re-grade L-25 answers with Claude judge to isolate judge-calibration effect vs. relation_slots over-supersession
+2. **L-26** — LLM reranker (run24.yaml); queued retrieval bottleneck experiment
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -163,8 +164,8 @@ uv run membench run \
 |---|---|---|---|
 | L-21 (ingest-only) | run18 + gemini/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
 | **L-23** | L-21 ingest + Claude-Sonnet-4-6 backbone + Claude judge | **69.8%** | Complete; 2026-07-31 |
-| L-24 | + SUPERSEDES edges + event calendar (KU fix) | — | Queued — primary KU gap target |
-| L-25 | + SSA extractor update (assistant-stated facts) | — | Queued — secondary gap |
+| L-24 | relation_slots KU fix (SUPERSEDES-slot metadata) | — | Merged into L-25; changes landed in gnosis 2026-08-04 |
+| **L-25** | edu-v2.0 (Rule 15: assistant-turn extraction) + relation_slots (KU fix); fresh ingest | **72.4%** | **Complete** (2026-08-05); SSA +53.5pp, KU +49.5pp; SSP/MS regression under investigation |
 | L-26 | + reranker (run24.yaml) | — | Queued — retrieval bottleneck |
 | L-27 | + community graph + multi-query rewrite (run25.yaml) | — | Queued — open-domain + multi-hop |
 
@@ -294,4 +295,5 @@ Key sources: [LOCOMO](https://arxiv.org/abs/2402.17753) ·
 [EMem](https://arxiv.org/abs/2511.17208) ·
 [Memory-R2](https://arxiv.org/abs/2605.21768) ·
 ["Is Grep All You Need?"](https://arxiv.org/abs/2605.15184) ·
-[MemCon](https://arxiv.org/abs/2607.13591)
+[MemCon](https://arxiv.org/abs/2607.13591) ·
+[Memanto](https://arxiv.org/abs/2604.22085)

@@ -89,7 +89,8 @@ are from self-reports or third-party papers — scores are not directly comparab
 | ENGRAM (arXiv:2511.12960) | **71.4%** | Self-reported | |
 | Zep (arXiv:2501.13956) | **71.2%** | Self-reported | GPT-4o backbone; KU 83.3%, Multi-session 57.9%, Temporal 62.4% |
 | **Mem0** | **67.6%** | TiMem paper (3rd-party) | GPT-4o backbone. **Self-reported 94.4% is unverified and inconsistent with all third-party evaluations — disregard.** Scores vary 49–68% across papers. |
-| gnosis L-21 | *in progress* | This campaign | Full 500, gpt-4o judge |
+| gnosis L-23 | **69.8%** | This campaign | Full 500-Q, Claude-Sonnet-4-6 backbone + judge; 2026-07-31 |
+| gnosis L-25 | *in progress* | This campaign | edu-v2.0 + relation_slots; ingest 2026-08-04→05 |
 
 **Knowledge-update is the clearest performance divide.** Chronos achieves 100%
 KU because its event calendar structure makes temporal supersession deterministic.
@@ -416,11 +417,19 @@ are much closer.
 that map directly to our gaps). Frozen 100-instance subset is the inner loop;
 full 500 is the competitor comparison. Current L-0 baseline in progress.
 
-**Key LME_S axes for gnosis:**
-- Knowledge-update: clearly weakest (smoke test); T2 (validity intervals) is the fix
-- Multi-session: expected to be moderate; T1 (community graph) may help
-- Temporal-reasoning: expected to be strong (our existing temporal strength transfers)
-- Abstention: need to baseline; our CoN instruction should help
+**Key LME_S axes for gnosis (updated 2026-08-05, L-23 measured):**
+- **Knowledge-update (23.6%):** primary gap confirmed. Fix implemented in L-25:
+  `relation_slots` metadata enables relation-class-aware supersession (entity+relation
+  grouping) instead of entity-only. Deterministic read-time newest-wins per slot.
+- **Single-session-assistant (41.1%):** secondary gap confirmed. Fix implemented in L-25:
+  edu-v2.0 Rule 15 explicitly extracts assistant-turn commitments, recommendations, and
+  stated facts. Backed by Memanto ([arXiv 2604.22085](https://arxiv.org/abs/2604.22085)).
+- **Multi-session (73.6%):** solid; T1 (community graph) may improve further.
+- **Temporal-reasoning (82.7%):** strong; transfers from LOCOMO work.
+- **Abstention (100.0%), SSP (96.7%), SSU (87.5%):** strong — CoN instruction working.
+
+**L-25 is in progress** (ingest 2026-08-04→05; answer+grade next). Results will determine
+whether KU/SSA gaps close, and what the next lever is.
 
 **LOCOMO subset-3:** Keep as the regression gate at Run 18 config (~71 reproducible
 level). Never report subset-3 as a competitive claim. Run 23 is the competitive
