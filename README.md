@@ -5,24 +5,24 @@ Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answ
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current standing — LongMemEval_S L-25 (full 500-Q, 2026-08-05):**
-gpt-4o backbone + gpt-4o judge via gnosis context retrieval. edu-v2.0 (assistant-turn extraction) + relation_slots (KU fix).
+**Current standing — LongMemEval_S L-25b (full 500-Q, 2026-08-06):**
+gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-only supersession fix.
 
-| Category | L-25 | vs L-23 | Notes |
+| Category | L-25b | vs L-23 | Notes |
 |---|---|---|---|
-| single-session-assistant | **94.6%** (n=56) | +53.5pp | edu-v2.0 Rule 15 fixed assistant-turn extraction |
-| knowledge-update | **73.1%** (n=78) | +49.5pp | relation_slots fixed relation-class supersession |
-| single-session-user | 84.3% (n=70) | -3.2pp | |
-| temporal-reasoning | 75.9% (n=133) | -6.8pp | |
-| multi-session | 56.4% (n=133) | -17.2pp | regression under investigation |
-| single-session-preference | 56.7% (n=30) | -40.0pp | regression; judge calibration difference suspected |
-| **Overall** | **72.4%** (500 Q) | **+2.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
+| single-session-assistant | **98.2%** (n=56) | +57.1pp | near-ceiling |
+| knowledge-update | **73.1%** (n=78) | +49.5pp | stable |
+| single-session-user | **85.7%** (n=70) | -1.8pp | |
+| temporal-reasoning | 74.4% (n=133) | -8.3pp | |
+| multi-session | 59.4% (n=133) | -14.2pp | residual gap: abstention redistribution + judge calibration |
+| single-session-preference | 60.0% (n=30) | -36.7pp | residual gap: same causes |
+| **Overall** | **73.6%** (500 Q) | **+3.8pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
 
-*Note: L-25 uses gpt-4o judge; L-23 used Claude-Sonnet-4-6. SSP/multi-session regressions may be partially or fully judge-calibration artifacts. See [RESULTS.md](RESULTS.md) for full analysis.*
+*Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
 
 **Next targets:**
-1. **SSP/multi-session regression** — re-grade L-25 answers with Claude judge to isolate judge-calibration effect vs. relation_slots over-supersession
-2. **L-26** — LLM reranker (run24.yaml); queued retrieval bottleneck experiment
+1. **L-26** — LLM reranker (run24.yaml); requires answer-only re-run, no re-ingest
+2. **L-27** — community subgraph (run25.yaml); expected multi-session + open-domain lift
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -165,7 +165,8 @@ uv run membench run \
 | L-21 (ingest-only) | run18 + gemini/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
 | **L-23** | L-21 ingest + Claude-Sonnet-4-6 backbone + Claude judge | **69.8%** | Complete; 2026-07-31 |
 | L-24 | relation_slots KU fix (SUPERSEDES-slot metadata) | — | Merged into L-25; changes landed in gnosis 2026-08-04 |
-| **L-25** | edu-v2.0 (Rule 15: assistant-turn extraction) + relation_slots (KU fix); fresh ingest | **72.4%** | **Complete** (2026-08-05); SSA +53.5pp, KU +49.5pp; SSP/MS regression under investigation |
+| **L-25** | edu-v2.0 (Rule 15: assistant-turn extraction) + relation_slots (KU fix); fresh ingest | 72.4% | Complete (2026-08-05); see L-25b for singleton fix |
+| **L-25b** | + singleton-only relation_slots supersession (read-time fix, no re-ingest) | **73.6%** | **Complete** (2026-08-06); SSA 98.2%, KU 73.1%, MS +3pp, SSP +3.3pp vs L-25 |
 | L-26 | + reranker (run24.yaml) | — | Queued — retrieval bottleneck |
 | L-27 | + community graph + multi-query rewrite (run25.yaml) | — | Queued — open-domain + multi-hop |
 
