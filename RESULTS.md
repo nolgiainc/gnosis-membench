@@ -952,8 +952,9 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-21 | *(ingest-only)* | — | — | — | Full 500-Q ingest into gnosis established; no answer/grade run (gpt-4o judge requires inference key) |
 | — | **gnosis L-23** | **69.8%** | **23.6%** | **73.6%** | **82.7%** | Full 500-Q; Claude-Sonnet-4-6 backbone + Claude judge; 2026-07-31 |
 | — | **gnosis L-25** | **72.4%** | **73.1%** | **56.4%** | **75.9%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-05; edu-v2.0 + relation_slots |
-| — | **gnosis L-25b** | **73.6%** | **73.1%** | **59.4%** | **74.4%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + singleton-only relation_slots supersession fix |
+| — | **gnosis L-25b** | **73.6%** | **70.8%** | **58.7%** | **74.0%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + singleton-only relation_slots supersession fix; KU n=72, SSU 84.4% n=64 |
 | — | gnosis L-27 | 73.4% | 73.6% | 53.7% | 77.2% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true); abstention separate 83.3% (n=30); SSA regressed to 92.9% |
+| — | gnosis L-28 | 71.8% | 72.2% | 53.7% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; stronger CoN recency clause ("report ONLY most recent value"); abstention 86.7% (n=30); SSA -5.3pp, SSU -6.3pp, MS -5.0pp vs L-25b |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -992,10 +993,10 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 **Gnosis L-25b result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — CURRENT BEST:**
 - overall **73.6%** (368/500) — **+1.2pp vs L-25, +3.8pp vs L-23**
 - single-session-assistant **98.2%** (n=56) — near-ceiling
-- knowledge-update **73.1%** (n=78) — unchanged; singleton filter preserved KU slots correctly
-- single-session-user **85.7%** (n=70); temporal-reasoning 74.4% (n=133)
-- multi-session **59.4%** (n=133) — +3.0pp vs L-25
-- single-session-preference **60.0%** (n=30) — +3.3pp vs L-25
+- knowledge-update **70.8%** (n=72) — singleton filter preserved KU slots correctly
+- single-session-user **84.4%** (n=64); temporal-reasoning **74.0%** (n=127)
+- multi-session **58.7%** (n=121) — +2.3pp vs L-25
+- abstention **83.3%** (n=30); single-session-preference **60.0%** (n=30) — +3.3pp vs L-25
 - *Fix: `is_singleton_relation_class()` in supersession.py — only employment, location, relationship-status, and education relations use named supersession slots; additive relations fall through to entity-first slot. Residual SSP/MS gap vs L-23 is abstention-question redistribution + judge calibration difference.*
 
 **Gnosis L-27 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — community graph experiment:**
@@ -1008,6 +1009,17 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 - single-session-preference **63.3%** (n=30) — **+3.3pp**
 - abstention **83.3%** (n=30) — appears as separate category (same as L-23; L-25b had these folded into other categories)
 - *Note: n counts differ from L-25b because abstention Qs (n=30) are a separate category in L-27, matching L-23's distribution. Verdict: community graph is **not a win** — SSA regression (-5.3pp) and MS regression (-5.7pp) outweigh temporal/SSP gains. L-25b remains CURRENT BEST at 73.6%.*
+
+**Gnosis L-28 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — CoN recency strengthening experiment:**
+- overall **71.8%** (359/500) — **-1.8pp vs L-25b**
+- single-session-assistant **92.9%** (n=56) — **-5.3pp vs L-25b** (clause over-fires on single-session queries)
+- knowledge-update **72.2%** (n=72) — **+1.4pp** (target gain, but only ~1 question, not the expected ~6)
+- single-session-user **78.1%** (n=64) — **-6.3pp vs L-25b** (severe regression)
+- temporal-reasoning **75.6%** (n=127) — +1.6pp
+- multi-session **53.7%** (n=121) — **-5.0pp vs L-25b**
+- single-session-preference **60.0%** (n=30) — flat
+- abstention **86.7%** (n=30) — +3.4pp
+- *Change: `_CON_RECENCY_CLAUSE` in backend.py strengthened to "report ONLY the most recently-dated value — do not mention or qualify with the older value" plus "This applies even when the update was phrased as a goal, plan, change of mind, or casual mention in a different context." The "ONLY" directive and cross-context clause caused the model to apply recency selection in cases without a genuine update conflict, suppressing correct multi-valued answers in SSA/SSU/MS. KU reading-error hypothesis partially wrong: the ~6 reading errors are likely retrieval-rank failures (older fact ranks above newer), not model-reasoning failures addressable by a stronger clause. Reverted to L-25b clause. L-25b remains CURRENT BEST.*
 
 **Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
@@ -1575,18 +1587,18 @@ single fresh ingest run rather than two sequential re-ingests.
 
 **Scores vs L-23 (note: L-23 used Claude-Sonnet-4-6 judge; L-25 uses gpt-4o judge):**
 
-| Category | L-23 | L-25 | L-25b | L-27 | Δ L-25b→L-27 |
+| Category | L-23 | L-25 | L-25b | L-27 | L-28 |
 |---|---|---|---|---|---|
-| single-session-assistant | 41.1% (n=56) | 94.6% (n=56) | **98.2%** (n=56) | 92.9% (n=56) | **-5.3pp** (community ctx confuses model) |
-| knowledge-update | 23.6% (n=72) | 73.1% (n=78) | **73.1%** (n=78) | 73.6% (n=72) | ~flat |
-| single-session-user | 87.5% (n=64) | 84.3% (n=70) | **85.7%** (n=70) | 85.9% (n=64) | flat |
-| temporal-reasoning | 82.7% (n=127) | 75.9% (n=133) | 74.4% (n=133) | 77.2% (n=127) | +2.8pp |
-| multi-session | 73.6% (n=121) | 56.4% (n=133) | **59.4%** (n=133) | 53.7% (n=121) | **-5.7pp** |
-| single-session-preference | 96.7% (n=30) | 56.7% (n=30) | **60.0%** (n=30) | 63.3% (n=30) | +3.3pp |
-| abstention | 100.0% (n=30) | *(redistributed)* | *(redistributed)* | 83.3% (n=30) | separate again |
-| **Overall** | **69.8%** | **72.4%** | **73.6%** | 73.4% | **-0.2pp** |
+| single-session-assistant | 41.1% (n=56) | 94.6% (n=56) | **98.2%** (n=56) | 92.9% (n=56) | 92.9% (n=56) |
+| knowledge-update | 23.6% (n=72) | 73.1% (n=78) | **70.8%** (n=72) | 73.6% (n=72) | 72.2% (n=72) |
+| single-session-user | 87.5% (n=64) | 84.3% (n=70) | **84.4%** (n=64) | 85.9% (n=64) | 78.1% (n=64) |
+| temporal-reasoning | 82.7% (n=127) | 75.9% (n=133) | 74.0% (n=127) | 77.2% (n=127) | 75.6% (n=127) |
+| multi-session | 73.6% (n=121) | 56.4% (n=133) | **58.7%** (n=121) | 53.7% (n=121) | 53.7% (n=121) |
+| single-session-preference | 96.7% (n=30) | 56.7% (n=30) | **60.0%** (n=30) | 63.3% (n=30) | 60.0% (n=30) |
+| abstention | 100.0% (n=30) | *(redistributed)* | 83.3% (n=30) | 83.3% (n=30) | 86.7% (n=30) |
+| **Overall** | **69.8%** | **72.4%** | **73.6%** | 73.4% | 71.8% |
 
-**Interpretation:** SSA and KU fixes are confirmed and stable. L-25b singleton fix recovered SSP/MS regression from relation_slots over-supersession. Residual SSP/MS gap vs L-23 is explained by: (1) gpt-4o judge calibrates preference/multi-session differently from Claude-Sonnet-4-6; (2) 30 abstention questions (scored 100% in L-23 as a separate category) were redistributed into other categories in L-25/L-25b and are now graded as regular questions. Multi-session n went from 121 → 133 (+12 likely former abstention questions). **L-27 verdict:** community graph is neutral overall (-0.2pp) but causes SSA regression (-5.3pp). Community summaries inject cross-session entity context globally, confusing the model on single-session queries. L-25b remains the CURRENT BEST at 73.6%.
+**Interpretation:** SSA and KU fixes are confirmed and stable. L-25b singleton fix recovered SSP/MS regression from relation_slots over-supersession. Residual SSP/MS gap vs L-23 is explained by: (1) gpt-4o judge calibrates preference/multi-session differently from Claude-Sonnet-4-6; (2) 30 abstention questions redistributed into other categories in L-25/L-25b. **L-27 verdict:** community graph is neutral overall (-0.2pp) but causes SSA regression (-5.3pp). L-25b remains CURRENT BEST at 73.6%. **L-28 verdict:** stronger CoN recency clause is rejected — SSA/SSU/MS regressed severely (-5.3pp/-6.3pp/-5.0pp) while KU gained only +1.4pp. Root cause: "ONLY report the most recent value" over-fires in non-KU contexts; the ~6 KU reading errors are more likely retrieval-rank failures than model-reasoning failures.
 
 ---
 
