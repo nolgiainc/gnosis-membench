@@ -21,8 +21,8 @@ gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-o
 *Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
 
 **Next targets:**
-1. **L-26** — LLM reranker (run24.yaml); requires answer-only re-run, no re-ingest
-2. **L-27** — community subgraph (run25.yaml); expected multi-session + open-domain lift
+1. **L-28** — BM25 hybrid retrieval on temporal/KU routes (temporal +8pp on LOCOMO; needs route-aware scoping to avoid SSP/MS regression)
+2. **L-29** — multi-query expansion for aggregative/multi-session routes (decompose cross-session enumeration questions)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -167,8 +167,8 @@ uv run membench run \
 | L-24 | relation_slots KU fix (SUPERSEDES-slot metadata) | — | Merged into L-25; changes landed in gnosis 2026-08-04 |
 | **L-25** | edu-v2.0 (Rule 15: assistant-turn extraction) + relation_slots (KU fix); fresh ingest | 72.4% | Complete (2026-08-05); see L-25b for singleton fix |
 | **L-25b** | + singleton-only relation_slots supersession (read-time fix, no re-ingest) | **73.6%** | **Complete** (2026-08-06); SSA 98.2%, KU 73.1%, MS +3pp, SSP +3.3pp vs L-25 |
-| L-26 | + reranker (run24.yaml) | — | Queued — retrieval bottleneck |
-| L-27 | + community graph + multi-query rewrite (run25.yaml) | — | Queued — open-domain + multi-hop |
+| L-26 | + reranker (run24.yaml) | — | Baked into L-25b (GNOSIS_RERANK_ENABLED was already true) |
+| **L-27** | + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true) | 73.4% | **Rejected** (2026-08-06) — neutral overall (-0.2pp vs L-25b); SSA -5.3pp (community ctx confuses model on single-session queries), MS -5.7pp; temporal +2.8pp, SSP +3.3pp |
 
 See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 

@@ -953,6 +953,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | **gnosis L-23** | **69.8%** | **23.6%** | **73.6%** | **82.7%** | Full 500-Q; Claude-Sonnet-4-6 backbone + Claude judge; 2026-07-31 |
 | — | **gnosis L-25** | **72.4%** | **73.1%** | **56.4%** | **75.9%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-05; edu-v2.0 + relation_slots |
 | — | **gnosis L-25b** | **73.6%** | **73.1%** | **59.4%** | **74.4%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + singleton-only relation_slots supersession fix |
+| — | gnosis L-27 | 73.4% | 73.6% | 53.7% | 77.2% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true); abstention separate 83.3% (n=30); SSA regressed to 92.9% |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -996,6 +997,17 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 - multi-session **59.4%** (n=133) — +3.0pp vs L-25
 - single-session-preference **60.0%** (n=30) — +3.3pp vs L-25
 - *Fix: `is_singleton_relation_class()` in supersession.py — only employment, location, relationship-status, and education relations use named supersession slots; additive relations fall through to entity-first slot. Residual SSP/MS gap vs L-23 is abstention-question redistribution + judge calibration difference.*
+
+**Gnosis L-27 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — community graph experiment:**
+- overall **73.4%** (367/500) — **-0.2pp vs L-25b** (neutral)
+- single-session-assistant **92.9%** (n=56) — **-5.3pp vs L-25b**: community summaries injected into context confused the model on single-session queries
+- knowledge-update **73.6%** (n=72) — ~flat
+- single-session-user **85.9%** (n=64) — flat
+- temporal-reasoning **77.2%** (n=127) — **+2.8pp** (mild improvement)
+- multi-session **53.7%** (n=121) — **-5.7pp** (regression; community summaries did not help multi-session recall)
+- single-session-preference **63.3%** (n=30) — **+3.3pp**
+- abstention **83.3%** (n=30) — appears as separate category (same as L-23; L-25b had these folded into other categories)
+- *Note: n counts differ from L-25b because abstention Qs (n=30) are a separate category in L-27, matching L-23's distribution. Verdict: community graph is **not a win** — SSA regression (-5.3pp) and MS regression (-5.7pp) outweigh temporal/SSP gains. L-25b remains CURRENT BEST at 73.6%.*
 
 **Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
@@ -1563,17 +1575,18 @@ single fresh ingest run rather than two sequential re-ingests.
 
 **Scores vs L-23 (note: L-23 used Claude-Sonnet-4-6 judge; L-25 uses gpt-4o judge):**
 
-| Category | L-23 | L-25 | L-25b | Δ L-23→L-25b |
-|---|---|---|---|---|
-| single-session-assistant | 41.1% (n=56) | 94.6% (n=56) | **98.2%** (n=56) | **+57.1pp** |
-| knowledge-update | 23.6% (n=72) | 73.1% (n=78) | **73.1%** (n=78) | **+49.5pp** |
-| single-session-user | 87.5% (n=64) | 84.3% (n=70) | **85.7%** (n=70) | -1.8pp |
-| temporal-reasoning | 82.7% (n=127) | 75.9% (n=133) | 74.4% (n=133) | -8.3pp |
-| multi-session | 73.6% (n=121) | 56.4% (n=133) | **59.4%** (n=133) | -14.2pp |
-| single-session-preference | 96.7% (n=30) | 56.7% (n=30) | **60.0%** (n=30) | -36.7pp |
-| **Overall** | **69.8%** | **72.4%** | **73.6%** | **+3.8pp** |
+| Category | L-23 | L-25 | L-25b | L-27 | Δ L-25b→L-27 |
+|---|---|---|---|---|---|
+| single-session-assistant | 41.1% (n=56) | 94.6% (n=56) | **98.2%** (n=56) | 92.9% (n=56) | **-5.3pp** (community ctx confuses model) |
+| knowledge-update | 23.6% (n=72) | 73.1% (n=78) | **73.1%** (n=78) | 73.6% (n=72) | ~flat |
+| single-session-user | 87.5% (n=64) | 84.3% (n=70) | **85.7%** (n=70) | 85.9% (n=64) | flat |
+| temporal-reasoning | 82.7% (n=127) | 75.9% (n=133) | 74.4% (n=133) | 77.2% (n=127) | +2.8pp |
+| multi-session | 73.6% (n=121) | 56.4% (n=133) | **59.4%** (n=133) | 53.7% (n=121) | **-5.7pp** |
+| single-session-preference | 96.7% (n=30) | 56.7% (n=30) | **60.0%** (n=30) | 63.3% (n=30) | +3.3pp |
+| abstention | 100.0% (n=30) | *(redistributed)* | *(redistributed)* | 83.3% (n=30) | separate again |
+| **Overall** | **69.8%** | **72.4%** | **73.6%** | 73.4% | **-0.2pp** |
 
-**Interpretation:** SSA and KU fixes are confirmed and stable. L-25b singleton fix recovered SSP/MS regression from relation_slots over-supersession. Residual SSP/MS gap vs L-23 is explained by: (1) gpt-4o judge calibrates preference/multi-session differently from Claude-Sonnet-4-6; (2) 30 abstention questions (scored 100% in L-23 as a separate category) were redistributed into other categories in L-25/L-25b and are now graded as regular questions. Multi-session n went from 121 → 133 (+12 likely former abstention questions).
+**Interpretation:** SSA and KU fixes are confirmed and stable. L-25b singleton fix recovered SSP/MS regression from relation_slots over-supersession. Residual SSP/MS gap vs L-23 is explained by: (1) gpt-4o judge calibrates preference/multi-session differently from Claude-Sonnet-4-6; (2) 30 abstention questions (scored 100% in L-23 as a separate category) were redistributed into other categories in L-25/L-25b and are now graded as regular questions. Multi-session n went from 121 → 133 (+12 likely former abstention questions). **L-27 verdict:** community graph is neutral overall (-0.2pp) but causes SSA regression (-5.3pp). Community summaries inject cross-session entity context globally, confusing the model on single-session queries. L-25b remains the CURRENT BEST at 73.6%.
 
 ---
 
