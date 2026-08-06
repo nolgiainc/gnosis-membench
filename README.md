@@ -22,8 +22,8 @@ gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-o
 *Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
 
 **Next targets:**
-1. **L-30** — tighten `knowledge_update` router to prevent SSA/SSP misclassification; L-29 tied L-25b overall (KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp from routing FP)
-2. **L-31** — multi-query expansion for aggregative/multi-session routes (decompose cross-session enumeration questions)
+1. **L-31** — multi-query expansion for aggregative/multi-session routes (decompose cross-session enumeration questions into sub-queries per session); targets MS gap (58.7% vs L-23's 73.6%)
+2. **L-32** — structured knowledge-update slot tracking at ingest (store supersession metadata so retrieval can prioritize by slot recency, not just ingest timestamp)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -172,6 +172,7 @@ uv run membench run \
 | **L-27** | + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true) | 73.4% | **Rejected** (2026-08-06) — neutral overall (-0.2pp vs L-25b); SSA -5.3pp, MS -5.0pp; temporal +2.8pp, SSP +3.3pp |
 | **L-28** | stronger CoN recency clause ("report ONLY most recently-dated value; do not mention older value") | 71.8% | **Rejected** (2026-08-06) — SSA -5.3pp, SSU -6.3pp, MS -5.0pp; KU +1.4pp only; clause over-fires outside KU context |
 | **L-29** | + `knowledge_update` router route + recency injection (top-5 newest facts merged into dense top-20) | 73.6% | **Tie** (2026-08-06) — KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp from routing misclassification; gains cancel; route mechanism confirmed |
+| **L-30** | + tighter knowledge_update guide (explicit SSA/preference/past-state exclusions) | 73.0% | **Rejected** (2026-08-06) — SSA/SSP partially recovered but temporal -2.4pp; routing precision asymmetric (too tight removes beneficial temporal routing); reverted to L-29 guide |
 
 See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 
