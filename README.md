@@ -32,6 +32,11 @@ gpt-4o backbone + gpt-4o judge. Reuses L-31 Neo4j data; answer.py only changes.
 - Sub-queries increased 2→4; dedup via `seen: set[str]` (was substring scan)
 - Overall **74.2%** (+1.6pp vs L-32, **+0.6pp vs L-25b**); KU gap to Zep (83.3%): 1.4pp
 
+**L-34 (2026-08-10) — math instruction for aggregative MS questions:**
+- Appended `[instruction]` to retrieved context for aggregative multi-session questions: list every value, compute step by step
+- MS **60.3% → 66.1% (+5.8pp, +7 questions)** — targets wrong-sum failures from L-32 analysis
+- Overall **74.2%** (ties L-33); other category deltas are judge noise (instruction only fires for MS aggregative)
+
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
 remains the LOCOMO gap (J 29.2 vs frontier ~74–77).

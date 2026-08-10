@@ -960,6 +960,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-31 | 71.0% | **80.6%** | 54.5% | 66.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-09; write-time SUPERSEDES edges + valid_to IS NULL filter; KU +9.8pp (70.8%→80.6%) confirmed; regressions: SSA -3.6pp (94.6%), temporal -7.9pp, SSU -6.3pp, MS -4.2pp; net -2.6pp vs L-25b (re-run after fixing 13 ingest failures) |
 | — | gnosis L-32 | 72.6% | 81.9% | **59.5%** | 67.7% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; enumeration clause fix (GNOSIS_CON_ENUMERATION_ENABLED=true) + multi-query expansion (aggregative multi-session); MS +5.0pp (54.5%→59.5%), KU +1.4pp (80.6%→81.9%), SSA +1.8pp, SSU +3.1pp, temporal +1.6pp; SSP -6.7pp, abstention -6.7pp (30-sample noise, 2-question delta each); net +1.6pp vs L-31; no re-ingest (reuses L-31 Neo4j data) |
 | — | **gnosis L-33** | **74.2%** | **81.9%** | **60.3%** | 69.3% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; extended aggregative pattern (added average/percentage/how long) + 4 sub-queries (was 2) + set-based dedup; MS +0.8pp (59.5%→60.3%), temporal +1.6pp, SSU +1.6pp, SSP +10.0pp, abstention +6.6pp; SSA -1.8pp (within noise at n=56); KU flat; net +1.6pp vs L-32; **new best overall** (74.2% vs L-25b 73.6%); no re-ingest |
+| — | **gnosis L-34** | **74.2%** | 80.6% | **66.1%** | 66.9% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; math instruction appended to retrieved context for aggregative multi-session questions ("list every value, compute step by step"); MS **+5.8pp** (60.3%→66.1%, +7 questions); SSA +1.8pp; SSP -10.0pp, temporal -2.4pp, KU -1.4pp (all judge noise — math note does not fire for these categories); overall ties L-33 at 74.2%; no re-ingest |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1109,6 +1110,24 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 *vs L-25b (previous best): overall +0.6pp (73.6%→74.2%), KU +11.1pp (70.8%→81.9%), MS +1.6pp (58.7%→60.3%), temporal −4.7pp (74.0%→69.3%), SSA −3.6pp (98.2%→94.6%). L-33 trades some SSA/temporal against the structural KU gain from L-31 and retrieval-width gains from L-32/L-33. Temporal and SSA remain the primary remaining gaps vs L-25b.*
 
 *KU trajectory: 23.6% (L-23) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural) → 81.9% (L-32/L-33, flat — enumeration clause). Gap to Zep (83.3%): 1.4pp.*
+
+**Gnosis L-34 (2026-08-10, COMPLETE) — math instruction for aggregative MS questions:**
+- *Change: appended `_MATH_NOTE` ("List every relevant value found above (including supplemental), compute your answer step by step, then state the final result.") to `retrieved` inside the same `if` block as `_expand_with_subqueries` — fires only for `multi-session` + `_AGGREGATIVE_PATTERN` questions. Targets 13 wrong-sum/wrong-math failures identified in the L-32 failure analysis. No gnosis changes, no re-ingest.*
+
+**Results: overall 74.2% (ties L-33). MS +5.8pp (60.3%→66.1%, +7 questions) — genuine targeted gain. All other category deltas are judge run variation (math note cannot fire for KU, temporal, SSP, abstention, SSA, SSU).**
+
+| Category | L-33 | L-34 | Delta | Note |
+|---|---|---|---|---|
+| **multi-session** | **60.3% (n=121)** | **66.1%** | **+5.8pp** | **targeted — math note fires here** |
+| single-session-assistant | 94.6% (n=56) | 96.4% | +1.8pp | judge noise |
+| single-session-user | 82.8% (n=64) | 82.8% | 0.0pp | |
+| knowledge-update | 81.9% (n=72) | 80.6% | −1.4pp | judge noise — math note does not fire |
+| temporal-reasoning | 69.3% (n=127) | 66.9% | −2.4pp | judge noise — math note does not fire |
+| abstention | 83.3% (n=30) | 80.0% | −3.3pp | judge noise |
+| single-session-preference | 66.7% (n=30) | 56.7% | −10.0pp | judge noise |
+| **OVERALL** | **74.2%** | **74.2%** | **0.0pp** | |
+
+*MS trajectory: 54.5% (L-31) → 59.5% (L-32) → 60.3% (L-33) → 66.1% (L-34). +11.6pp improvement in MS across L-31–L-34 while overall holds at 74.2%. Remaining MS gap: 33.9% (41/121 failures). Next targets: over-count failures (5 in L-32 analysis) and residual under-count.*
 
 **Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.

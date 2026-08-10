@@ -46,6 +46,12 @@ _SUBQUERY_PROMPT = (
     "Return only the 4 queries, one per line.\n\nQuestion: {question}"
 )
 
+_MATH_NOTE = (
+    "\n\n[instruction]\n"
+    "List every relevant value found above (including supplemental), "
+    "compute your answer step by step, then state the final result."
+)
+
 CONDITIONS = ("context", "search")
 
 # fmt: off
@@ -203,6 +209,7 @@ def answer_question(
             user_id=user_id_for(conv),
         )
         retrieved = _expand_with_subqueries(gnosis, llm, cfg, scope, question.question, retrieved)
+        retrieved += _MATH_NOTE
     prompt = build_answer_prompt(conv, question, retrieved)
     hypothesis = llm.complete(
         cfg.answer_model,
