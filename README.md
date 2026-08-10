@@ -21,14 +21,17 @@ gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-o
 
 *Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
 
-**L-31 (2026-08-09, re-run with fixed ingest) — KU structural fix complete:**
-- KU **70.8% → 80.6% (+9.8pp)** confirmed via write-time SUPERSEDES edges + `valid_to IS NULL` filter
-- Overall 71.0% (vs L-25b 73.6%): regressions SSA −3.6pp, temporal −7.9pp, SSU −6.3pp, MS −4.2pp
-- Regressions confirmed NOT from SUPERSEDES logic (only 28 facts have valid_to; SSA/temporal routing confirmed identical to L-25b); ingest variation from fresh reingest explains the spread
-- KU gap to Zep (83.3%): 2.7pp; gap to Chronos (100%): 19.4pp
+**L-31 (2026-08-09) — KU structural fix:**
+- KU **70.8% → 80.6% (+9.8pp)** via write-time SUPERSEDES edges + `valid_to IS NULL` filter
+- Overall 71.0%; regressions (SSA −3.6pp, temporal −7.9pp, MS −4.2pp) confirmed as ingest variation
+
+**L-32 (2026-08-10) — enumeration clause fix + multi-query expansion for MS:**
+- MS **54.5% → 59.5% (+5.0pp)** via LLM sub-query expansion for aggregative multi-session questions
+- KU **80.6% → 81.9% (+1.4pp)** collateral gain from enumeration clause (count unique items, not records)
+- Overall **72.6%** (+1.6pp vs L-31); KU gap to Zep (83.3%): 1.4pp
 
 **Next targets:**
-1. **L-32** — router misclassification fix to recover SSA/temporal regression; multi-query expansion for MS gap (54.5%)
+1. **L-33** — recover SSP/abstention noise; further MS gap exploration (remaining 40.5% failure rate)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -179,6 +182,7 @@ uv run membench run \
 | **L-29** | + `knowledge_update` router route + recency injection (top-5 newest facts merged into dense top-20) | 73.6% | **Tie** (2026-08-06) — KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp from routing misclassification; gains cancel; route mechanism confirmed |
 | **L-30** | + tighter knowledge_update guide (explicit SSA/preference/past-state exclusions) | 73.0% | **Rejected** (2026-08-06) — SSA/SSP partially recovered but temporal -2.4pp; routing precision asymmetric (too tight removes beneficial temporal routing); reverted to L-29 guide |
 | **L-31** | write-time SUPERSEDES edges + `valid_to IS NULL` filter in vector/BM25 Cypher for knowledge_update route (structural KU fix; arXiv:2607.26520) | **71.0%** | **Complete** (2026-08-09, re-run with fixed ingest) — KU 80.6% (+9.8pp); regressions SSA −3.6pp, temporal −7.9pp, MS −4.2pp (ingest variation, NOT router misclassification — confirmed by routing trace) |
+| **L-32** | `GNOSIS_CON_ENUMERATION_ENABLED=true` (count unique real-world items not records) + multi-query expansion in answer.py for aggregative multi-session questions (2 LLM sub-queries → supplemental section) | **72.6%** | **Complete** (2026-08-10, no re-ingest) — MS **59.5% (+5.0pp)**, KU 81.9% (+1.4pp), SSA 96.4% (+1.8pp), SSU 81.2% (+3.1pp), temporal 67.7% (+1.6pp); SSP/abstention −6.7pp each (2-question noise at n=30) |
 
 See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 

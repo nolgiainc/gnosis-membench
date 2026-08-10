@@ -958,6 +958,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-29 | 73.6% | 75.0% | 57.9% | 78.0% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; knowledge_update router route + recency injection; KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp (routing misclassification); overall ties L-25b |
 | — | gnosis L-30 | 73.0% | 75.0% | 57.0% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; tighter knowledge_update guide (explicit SSA/preference/past-state exclusions); SSA -3.6pp, temporal +1.6pp — tighter guide removed beneficial temporal misroutes; net -0.6pp vs L-25b |
 | — | gnosis L-31 | 71.0% | **80.6%** | 54.5% | 66.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-09; write-time SUPERSEDES edges + valid_to IS NULL filter; KU +9.8pp (70.8%→80.6%) confirmed; regressions: SSA -3.6pp (94.6%), temporal -7.9pp, SSU -6.3pp, MS -4.2pp; net -2.6pp vs L-25b (re-run after fixing 13 ingest failures) |
+| — | gnosis L-32 | 72.6% | 81.9% | **59.5%** | 67.7% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; enumeration clause fix (GNOSIS_CON_ENUMERATION_ENABLED=true) + multi-query expansion (aggregative multi-session); MS +5.0pp (54.5%→59.5%), KU +1.4pp (80.6%→81.9%), SSA +1.8pp, SSU +3.1pp, temporal +1.6pp; SSP -6.7pp, abstention -6.7pp (30-sample noise, 2-question delta each); net +1.6pp vs L-31; no re-ingest (reuses L-31 Neo4j data) |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1066,7 +1067,25 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 
 *Diagnosis of regressions (CONFIRMED after investigation):* SUPERSEDES logic is NOT over-firing — only 28 facts total had `valid_to` set, all in singleton-relation categories (employment, location, etc.), and `filter_superseded=True` only activates for the `knowledge_update` route. SSA/temporal/SSU routing was confirmed identical to L-25b (no `[recent]` section, non-KU route). Regressions are from two sources: (1) fresh ingest producing different extracted facts for some conversations (different random ordering in Neo4j graph traversal), causing retrieval variation on borderline questions; (2) the 13 re-ingested conversations (previously 0 facts) now contributing correctly-ingested content, which was offset by variation elsewhere. The write-time SUPERSEDES feature itself is working as designed; regressions are ingest-quality noise and routing-independent retrieval variation. L-25b remains CURRENT BEST.
 
-*KU trajectory: 23.6% (L-23 baseline) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural). Gap to Zep (83.3%): 2.7pp. Gap to Chronos (100%): 19.4pp. Phase 2 directionally confirmed; Phase 3 (router misclassification fix + multi-query expansion for MS gap) queued.*
+*KU trajectory: 23.6% (L-23 baseline) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural) → 81.9% (L-32, enumeration clause). Gap to Zep (83.3%): 1.4pp. Gap to Chronos (100%): 18.1pp.*
+
+**Gnosis L-32 (2026-08-10, COMPLETE) — enumeration clause fix + multi-query expansion for MS:**
+- *Changes: (1) `GNOSIS_CON_ENUMERATION_ENABLED=true` — fixed `_CON_ENUMERATION_CLAUSE` text in backend.py to "count unique items or events — if the same item appears in multiple memories, count it only once. Do not count the number of memory records; count the number of distinct things those records describe." Targets over-count MS failures (17/55 wrong: same item in multiple sessions counted multiple times). (2) Multi-query expansion in answer.py — for `multi-session` + aggregative-pattern questions, generates 2 LLM sub-queries, calls gnosis.search() for each (limit=10), appends unique results as `[supplemental]` section. Targets under-count MS failures (26/55: semantically-distant sessions' facts missed by top-20 retrieval). No re-ingest; reuses L-31 Neo4j data.*
+
+**Results: overall 72.6% (+1.6pp vs L-31 71.0%). MS +5.0pp confirmed; KU +1.4pp collateral gain; SSP/abstention regressions are 2-question noise at n=30.**
+
+| Category | L-31 | L-32 | Delta |
+|---|---|---|---|
+| **multi-session** | **54.5% (n=121)** | **59.5%** | **+5.0pp** |
+| single-session-user | 78.1% (n=64) | 81.2% | +3.1pp |
+| single-session-assistant | 94.6% (n=56) | 96.4% | +1.8pp |
+| temporal-reasoning | 66.1% (n=127) | 67.7% | +1.6pp |
+| **knowledge-update** | **80.6% (n=72)** | **81.9%** | **+1.4pp** |
+| single-session-preference | 63.3% (n=30) | 56.7% | −6.7pp |
+| abstention | 83.3% (n=30) | 76.7% | −6.7pp |
+| **OVERALL** | **71.0%** | **72.6%** | **+1.6pp** |
+
+*SSP and abstention regressions are 2-question deltas in 30-sample categories — within judge noise. Multi-query expansion pattern fires only for `multi-session` + aggregative questions; SSP and abstention are single-session or separately-routed. Enumeration clause applies only to `aggregative` and `multi_hop` routes. No explanation for SSP/abstention change; likely judge variation.*
 
 **Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.

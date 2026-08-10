@@ -8,9 +8,14 @@ Endpoints used (see gnosis docs/provider-surface.md):
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
+
+_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+_MAX_RETRIES = 4
+_RETRY_BASE = 2.0
 
 
 class GnosisError(RuntimeError):
@@ -57,13 +62,21 @@ class GnosisClient:
         }
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = self._client.post(path, json=payload)
-        except httpx.HTTPError as exc:
-            raise GnosisError(f"POST {path} -> {type(exc).__name__}: {exc}") from exc
-        if response.status_code >= 400:
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                response = self._client.post(path, json=payload)
+            except httpx.HTTPError as exc:
+                if attempt == _MAX_RETRIES:
+                    raise GnosisError(f"POST {path} -> {type(exc).__name__}: {exc}") from exc
+                time.sleep(_RETRY_BASE**attempt)
+                continue
+            if response.status_code < 400:
+                return response.json()
+            if response.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES:
+                time.sleep(_RETRY_BASE**attempt)
+                continue
             raise GnosisError(f"POST {path} -> {response.status_code}: {response.text[:500]}")
-        return response.json()
+        raise AssertionError("unreachable")
 
     def ready(self) -> bool:
         try:

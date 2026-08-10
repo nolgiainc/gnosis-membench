@@ -12,6 +12,7 @@ LongMemEval_S's knowledge-update (KU) category tests whether a system returns th
 | L-25 (2026-08-05) | 73.1% | 72.4% | edu-v2.0 + relation_slots metadata |
 | **L-25b (2026-08-06)** | **70.8%** | **73.6%** | + singleton-only supersession fix |
 | **L-31 (2026-08-09)** | **80.6%** | **71.0%** | Write-time SUPERSEDES edges + valid_to IS NULL filter (re-run with fixed ingest) |
+| **L-32 (2026-08-10)** | **81.9%** | **72.6%** | Enumeration clause fix + multi-query expansion for MS (no re-ingest) |
 
 **L-31 result: KU 70.8% → 80.6% (+9.8pp).** Structural fix confirmed. Net overall −2.6pp due to regressions SSA −3.6pp, temporal −7.9pp, SSU −6.3pp, MS −4.2pp. Regressions confirmed NOT from SUPERSEDES logic (routing identical to L-25b for SSA/temporal; only 28 facts have valid_to set) — ingest variation from fresh reingest explains the spread.
 
