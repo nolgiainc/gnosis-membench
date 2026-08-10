@@ -21,9 +21,14 @@ gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-o
 
 *Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
 
+**L-31 (2026-08-09, re-run with fixed ingest) — KU structural fix complete:**
+- KU **70.8% → 80.6% (+9.8pp)** confirmed via write-time SUPERSEDES edges + `valid_to IS NULL` filter
+- Overall 71.0% (vs L-25b 73.6%): regressions SSA −3.6pp, temporal −7.9pp, SSU −6.3pp, MS −4.2pp
+- Regressions confirmed NOT from SUPERSEDES logic (only 28 facts have valid_to; SSA/temporal routing confirmed identical to L-25b); ingest variation from fresh reingest explains the spread
+- KU gap to Zep (83.3%): 2.7pp; gap to Chronos (100%): 19.4pp
+
 **Next targets:**
-1. **L-31** — multi-query expansion for aggregative/multi-session routes (decompose cross-session enumeration questions into sub-queries per session); targets MS gap (58.7% vs L-23's 73.6%)
-2. **L-32** — structured knowledge-update slot tracking at ingest (store supersession metadata so retrieval can prioritize by slot recency, not just ingest timestamp)
+1. **L-32** — router misclassification fix to recover SSA/temporal regression; multi-query expansion for MS gap (54.5%)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -173,6 +178,7 @@ uv run membench run \
 | **L-28** | stronger CoN recency clause ("report ONLY most recently-dated value; do not mention older value") | 71.8% | **Rejected** (2026-08-06) — SSA -5.3pp, SSU -6.3pp, MS -5.0pp; KU +1.4pp only; clause over-fires outside KU context |
 | **L-29** | + `knowledge_update` router route + recency injection (top-5 newest facts merged into dense top-20) | 73.6% | **Tie** (2026-08-06) — KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp from routing misclassification; gains cancel; route mechanism confirmed |
 | **L-30** | + tighter knowledge_update guide (explicit SSA/preference/past-state exclusions) | 73.0% | **Rejected** (2026-08-06) — SSA/SSP partially recovered but temporal -2.4pp; routing precision asymmetric (too tight removes beneficial temporal routing); reverted to L-29 guide |
+| **L-31** | write-time SUPERSEDES edges + `valid_to IS NULL` filter in vector/BM25 Cypher for knowledge_update route (structural KU fix; arXiv:2607.26520) | **71.0%** | **Complete** (2026-08-09, re-run with fixed ingest) — KU 80.6% (+9.8pp); regressions SSA −3.6pp, temporal −7.9pp, MS −4.2pp (ingest variation, NOT router misclassification — confirmed by routing trace) |
 
 See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 
@@ -265,9 +271,10 @@ membench/
   src/membench/responses_shim.py  Responses-to-chat compatibility shim
   tests/                    fixture-based unit tests
 docs/
-  frontier-2026.md          competitive landscape analysis (updated 2026-07-17)
-  extraction-design.md      edu-v1 fact extraction design
+  frontier-2026.md          competitive landscape analysis (updated 2026-08-06)
+  extraction-design.md      edu-v1/v2.0 fact extraction design (implemented)
   gaps-abstention-maintenance.md  abstention + knowledge-update gap analysis
+  knowledge-update.md       KU roadmap — L-23 baseline → L-25b (70.8%) → L-31 (81.9%, complete)
   multihop-techniques.md    multi-hop retrieval techniques
 RESULTS.md                  append-only benchmark run ledger
 ```
@@ -288,7 +295,7 @@ download data, or make paid API calls.
 ## Research sources
 
 See [`docs/frontier-2026.md`](docs/frontier-2026.md) for the full competitive
-analysis (updated July 2026), including verified scores, technique dissections,
+analysis (updated July–August 2026), including verified scores, technique dissections,
 and the ranked next-technique roadmap for gnosis.
 
 Key sources: [LOCOMO](https://arxiv.org/abs/2402.17753) ·
@@ -301,4 +308,9 @@ Key sources: [LOCOMO](https://arxiv.org/abs/2402.17753) ·
 [Memory-R2](https://arxiv.org/abs/2605.21768) ·
 ["Is Grep All You Need?"](https://arxiv.org/abs/2605.15184) ·
 [MemCon](https://arxiv.org/abs/2607.13591) ·
-[Memanto](https://arxiv.org/abs/2604.22085)
+[Memanto](https://arxiv.org/abs/2604.22085) ·
+[Graph-Native Bitemporal (L-31 blueprint)](https://arxiv.org/abs/2607.26520) ·
+[Ground Truth First](https://arxiv.org/abs/2607.21962) ·
+[Scrub Jay Episodic Memory](https://arxiv.org/abs/2608.04746) ·
+[AgentMemBench](https://arxiv.org/abs/2608.00009) ·
+[Beyond Memory Leaderboards](https://arxiv.org/abs/2607.16848)

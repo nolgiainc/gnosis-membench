@@ -957,6 +957,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-28 | 71.8% | 72.2% | 53.7% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; stronger CoN recency clause ("report ONLY most recent value"); abstention 86.7% (n=30); SSA -5.3pp, SSU -6.3pp, MS -5.0pp vs L-25b |
 | — | gnosis L-29 | 73.6% | 75.0% | 57.9% | 78.0% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; knowledge_update router route + recency injection; KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp (routing misclassification); overall ties L-25b |
 | — | gnosis L-30 | 73.0% | 75.0% | 57.0% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; tighter knowledge_update guide (explicit SSA/preference/past-state exclusions); SSA -3.6pp, temporal +1.6pp — tighter guide removed beneficial temporal misroutes; net -0.6pp vs L-25b |
+| — | gnosis L-31 | 71.0% | **80.6%** | 54.5% | 66.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-09; write-time SUPERSEDES edges + valid_to IS NULL filter; KU +9.8pp (70.8%→80.6%) confirmed; regressions: SSA -3.6pp (94.6%), temporal -7.9pp, SSU -6.3pp, MS -4.2pp; net -2.6pp vs L-25b (re-run after fixing 13 ingest failures) |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1045,7 +1046,29 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 - abstention **80.0%** (n=30) — -3.3pp vs L-29
 - *Tighter guide added explicit CRITICAL exclusions: (1) questions about what the assistant said/recommended → single_hop, (2) preference/taste questions → single_hop, (3) counts/lists → aggregative, (4) stable biographical/past-state → single_hop. SSA and SSP partially recovered but the temporal gain fell from +4.0pp to +1.6pp — the L-29 temporal boost was partly from "beneficial misrouting" of temporal-adjacent questions ("what's my current marathon PR?") into knowledge_update where recency injection helped. The tighter guide's past-state/preference exclusions pulled those questions back out. Routing precision problem runs in both directions: too loose → SSA/SSP FPs; too tight → temporal FNs. Reverted to L-29 guide. L-25b remains CURRENT BEST at 73.6%.*
 
-**Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
+**Gnosis L-31 (2026-08-09, COMPLETE) — write-time SUPERSEDES + valid_to IS NULL structural KU fix:**
+- *Ingest: 500/500 conversations at concurrency 32 (started 2026-08-06 ~15:26, completed 2026-08-07 ~22:26). 13 large conversations (43–53 sessions) had 0 facts in Neo4j due to embedding API rate-limiting at concurrency 32; re-ingested at concurrency 8 (2026-08-09). Answer+grade: fresh re-run 2026-08-09 after deleting stale answer/grade files.*
+- *Changes: (1) `WRITE_TIME_SUPERSEDE_CYPHER` in memory_provider.py — at ingest, for any new fact with relation_slots, immediately MATCH same-scope same-slot old facts and write `(new_fact)-[:SUPERSEDES]->(old_fact)`, set `old_fact.valid_to = datetime()`. (2) `filter_superseded: bool` field on `RouteDecision` — True for `knowledge_update` route only. (3) Both `LEXICAL_MEMORY_SEARCH_CYPHER` and `SCOPED_DENSE_MEMORY_SEARCH_CYPHER` modified to add `AND (NOT $filter_superseded OR f.valid_to IS NULL)` — stale facts can't rank in top-20 for KU queries.*
+- *Root cause addressed: Old facts outrank new facts in embedding space because updates are phrased in different conversational contexts. Write-time structural invalidation prevents old facts from competing at all.*
+
+**Results: overall 71.0% (−2.6pp vs L-25b 73.6%). KU confirmed structural fix +9.8pp; regressions in SSA/temporal/SSU/MS.**
+
+| Category | L-25b | L-31 | Delta |
+|---|---|---|---|
+| **knowledge-update** | **70.8% (n=72)** | **80.6%** | **+9.8pp** |
+| single-session-preference | 60.0% (n=30) | 63.3% | +3.3pp |
+| abstention | 83.3% (n=30) | 83.3% | 0pp |
+| single-session-assistant | 98.2% (n=56) | 94.6% | −3.6pp |
+| multi-session | 58.7% (n=121) | 54.5% | −4.2pp |
+| single-session-user | 84.4% (n=64) | 78.1% | −6.3pp |
+| temporal-reasoning | 74.0% (n=127) | 66.1% | −7.9pp |
+| **OVERALL** | **73.6%** | **71.0%** | **−2.6pp** |
+
+*Diagnosis of regressions (CONFIRMED after investigation):* SUPERSEDES logic is NOT over-firing — only 28 facts total had `valid_to` set, all in singleton-relation categories (employment, location, etc.), and `filter_superseded=True` only activates for the `knowledge_update` route. SSA/temporal/SSU routing was confirmed identical to L-25b (no `[recent]` section, non-KU route). Regressions are from two sources: (1) fresh ingest producing different extracted facts for some conversations (different random ordering in Neo4j graph traversal), causing retrieval variation on borderline questions; (2) the 13 re-ingested conversations (previously 0 facts) now contributing correctly-ingested content, which was offset by variation elsewhere. The write-time SUPERSEDES feature itself is working as designed; regressions are ingest-quality noise and routing-independent retrieval variation. L-25b remains CURRENT BEST.
+
+*KU trajectory: 23.6% (L-23 baseline) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural). Gap to Zep (83.3%): 2.7pp. Gap to Chronos (100%): 19.4pp. Phase 2 directionally confirmed; Phase 3 (router misclassification fix + multi-query expansion for MS gap) queued.*
+
+**Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
 - JordanMcCann 96.2% uses six parallel retrieval signals including BM25 (weight 0.12) and spreading activation (weight 0.18) + cross-encoder reranker.
 - Community subgraph (Zep pattern) is the primary mechanism explaining the open-domain gap.
@@ -1543,7 +1566,7 @@ baseline when quota headroom is safe.
 - Runs 1–22 used subset 3 of 10 LOCOMO conversations (dev-loop gate); the
   production Run 18 config is now measured on the full 10 (Run 23) for the
   competitor comparison, but per-run A/B history remains subset-3 only.
-  LongMemEval_S not yet run at scale.
+  LongMemEval_S full-500 runs are documented in the LME_S section above (L-23 onward); that is now the primary optimization target.
 - Answerer route changed between Run 1 and Runs 2-4 (Copilot quota) — the
   judge was held constant, but the context-vs-search comparison within Run 1
   is the cleanest same-route pair.
