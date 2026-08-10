@@ -36,7 +36,7 @@ from .llm import ChatClient
 
 _AGGREGATIVE_PATTERN: re.Pattern[str] = re.compile(
     r"\b(how many|how much|total|list all|list every|all the|every|enumerate"
-    r"|how often|how frequently|average|percentage|how long)\b",
+    r"|how often|how frequently|average|percentage|how long|increase|page count)\b",
     re.IGNORECASE,
 )
 
@@ -48,8 +48,12 @@ _SUBQUERY_PROMPT = (
 
 _MATH_NOTE = (
     "\n\n[instruction]\n"
-    "List every relevant value found above (including supplemental), "
-    "compute your answer step by step, then state the final result."
+    "Before counting, verify each candidate item passes all three checks: "
+    "(1) it directly answers what the question asks — not just a related item; "
+    "(2) it falls within any time period the question specifies; "
+    "(3) it is a distinct occurrence, not the same event mentioned twice with different phrasing. "
+    "Discard items that fail any check. "
+    "Then list only the confirmed qualifying items and compute your answer step by step."
 )
 
 CONDITIONS = ("context", "search")
