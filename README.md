@@ -5,19 +5,19 @@ Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answ
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current standing — LongMemEval_S L-33 (full 500-Q, 2026-08-10) — new best overall:**
+**Current standing — LongMemEval_S L-35 (full 500-Q, 2026-08-10) — new best overall:**
 gpt-4o backbone + gpt-4o judge. Reuses L-31 Neo4j data; answer.py only changes.
 
-| Category | L-33 | vs L-25b | Notes |
+| Category | L-35 | vs L-25b | Notes |
 |---|---|---|---|
-| knowledge-update | **81.9%** (n=72) | +11.1pp | write-time SUPERSEDES structural fix (L-31) |
-| single-session-assistant | 94.6% (n=56) | −3.6pp | ingest-variation gap vs L-25b |
+| knowledge-update | **80.6%** (n=72) | +9.8pp | write-time SUPERSEDES structural fix (L-31) |
+| single-session-assistant | 92.9% (n=56) | −5.4pp | ingest-variation gap vs L-25b |
 | single-session-user | 82.8% (n=64) | −1.6pp | |
-| temporal-reasoning | 69.3% (n=127) | −4.7pp | ingest-variation gap vs L-25b |
-| multi-session | **60.3%** (n=121) | +1.6pp | expanded sub-queries + broader aggregative pattern |
-| single-session-preference | **66.7%** (n=30) | +6.7pp | |
-| abstention | **83.3%** (n=30) | 0.0pp | |
-| **Overall** | **74.2%** (500 Q) | **+0.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
+| temporal-reasoning | **71.7%** (n=127) | −2.3pp | pattern expansion firing on "how long"/"how many months" phrasing |
+| multi-session | **66.1%** (n=121) | +7.4pp | math instruction + sub-query expansion |
+| single-session-preference | 53.3% (n=30) | −6.7pp | judge noise |
+| abstention | **86.7%** (n=30) | +3.4pp | |
+| **Overall** | **75.2%** (500 Q) | **+1.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
 
 **L-31 (2026-08-09) — KU structural fix:**
 - KU **70.8% → 80.6% (+9.8pp)** via write-time SUPERSEDES edges + `valid_to IS NULL` filter
@@ -27,15 +27,20 @@ gpt-4o backbone + gpt-4o judge. Reuses L-31 Neo4j data; answer.py only changes.
 - MS **54.5% → 59.5% (+5.0pp)** via 2-sub-query LLM expansion for aggregative multi-session questions
 - KU **80.6% → 81.9% (+1.4pp)**; overall **72.6%** (+1.6pp vs L-31)
 
-**L-33 (2026-08-10) — extended pattern + 4 sub-queries (new best overall):**
+**L-33 (2026-08-10) — extended pattern + 4 sub-queries:**
 - Extended `_AGGREGATIVE_PATTERN` to include `average|percentage|how long` (6 pattern-miss failures now covered)
 - Sub-queries increased 2→4; dedup via `seen: set[str]` (was substring scan)
-- Overall **74.2%** (+1.6pp vs L-32, **+0.6pp vs L-25b**); KU gap to Zep (83.3%): 1.4pp
+- Overall **74.2%** (+1.6pp vs L-32, **+0.6pp vs L-25b**)
 
 **L-34 (2026-08-10) — math instruction for aggregative MS questions:**
 - Appended `[instruction]` to retrieved context for aggregative multi-session questions: list every value, compute step by step
 - MS **60.3% → 66.1% (+5.8pp, +7 questions)** — targets wrong-sum failures from L-32 analysis
-- Overall **74.2%** (ties L-33); other category deltas are judge noise (instruction only fires for MS aggregative)
+- Overall **74.2%** (ties L-33)
+
+**L-35 (2026-08-10) — conservative math instruction + pattern extensions (new best overall):**
+- Conservative `_MATH_NOTE` with 3-check filter (direct match, time period, dedup); pattern extended with `increase`, `page count`
+- MS flat (66.1%, 6 fixed / 6 broken — check (1) too vague → abstention failures); temporal **+4.7pp** (71.7%)
+- Overall **75.2%** (+1.0pp, **new best** vs L-33/L-34 at 74.2%)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain

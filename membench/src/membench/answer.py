@@ -48,12 +48,11 @@ _SUBQUERY_PROMPT = (
 
 _MATH_NOTE = (
     "\n\n[instruction]\n"
-    "Before counting, verify each candidate item passes all three checks: "
-    "(1) it directly answers what the question asks — not just a related item; "
-    "(2) it falls within any time period the question specifies; "
-    "(3) it is a distinct occurrence, not the same event mentioned twice with different phrasing. "
-    "Discard items that fail any check. "
-    "Then list only the confirmed qualifying items and compute your answer step by step."
+    "Before counting, apply two filters: "
+    "(1) if the question specifies a time period, exclude items that clearly fall outside it; "
+    "(2) if the same event appears multiple times with different phrasing, count it once. "
+    "Never refuse to answer — use your best estimate from the remaining items. "
+    "List the confirmed items and compute your answer step by step."
 )
 
 CONDITIONS = ("context", "search")

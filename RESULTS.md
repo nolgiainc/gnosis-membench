@@ -961,6 +961,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-32 | 72.6% | 81.9% | **59.5%** | 67.7% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; enumeration clause fix (GNOSIS_CON_ENUMERATION_ENABLED=true) + multi-query expansion (aggregative multi-session); MS +5.0pp (54.5%→59.5%), KU +1.4pp (80.6%→81.9%), SSA +1.8pp, SSU +3.1pp, temporal +1.6pp; SSP -6.7pp, abstention -6.7pp (30-sample noise, 2-question delta each); net +1.6pp vs L-31; no re-ingest (reuses L-31 Neo4j data) |
 | — | **gnosis L-33** | **74.2%** | **81.9%** | **60.3%** | 69.3% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; extended aggregative pattern (added average/percentage/how long) + 4 sub-queries (was 2) + set-based dedup; MS +0.8pp (59.5%→60.3%), temporal +1.6pp, SSU +1.6pp, SSP +10.0pp, abstention +6.6pp; SSA -1.8pp (within noise at n=56); KU flat; net +1.6pp vs L-32; **new best overall** (74.2% vs L-25b 73.6%); no re-ingest |
 | — | **gnosis L-34** | **74.2%** | 80.6% | **66.1%** | 66.9% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; math instruction appended to retrieved context for aggregative multi-session questions ("list every value, compute step by step"); MS **+5.8pp** (60.3%→66.1%, +7 questions); SSA +1.8pp; SSP -10.0pp, temporal -2.4pp, KU -1.4pp (all judge noise — math note does not fire for these categories); overall ties L-33 at 74.2%; no re-ingest |
+| — | **gnosis L-35** | **75.2%** | 80.6% | **66.1%** | **71.7%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; conservative math instruction (3-check filter before counting) + pattern extension (added `increase`, `page count`); MS flat (66.1%, 6 fixed / 6 broken: check-1 "directly answers" too vague → abstention-induced failures); temporal **+4.7pp** (71.7%) from pattern expansion firing on "how long" / "how many months" temporal questions; abstention +6.7pp; overall **+1.0pp → 75.2% NEW BEST**; no re-ingest |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1128,6 +1129,29 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | **OVERALL** | **74.2%** | **74.2%** | **0.0pp** | |
 
 *MS trajectory: 54.5% (L-31) → 59.5% (L-32) → 60.3% (L-33) → 66.1% (L-34). +11.6pp improvement in MS across L-31–L-34 while overall holds at 74.2%. Remaining MS gap: 33.9% (41/121 failures). Next targets: over-count failures (5 in L-32 analysis) and residual under-count.*
+
+**Gnosis L-35 (2026-08-10, COMPLETE) — conservative math instruction + pattern extensions:**
+- *Change 1: Conservative `_MATH_NOTE` — replaced "list every relevant value" with a 3-check filter: (1) directly answers what the question asks, (2) falls within any time period the question specifies, (3) distinct occurrence not mentioned twice with different phrasing. Plus explicit "discard items that fail any check, then compute step by step." Targets 19/41 L-34 MS over-count failures where supplemental expansion injected wrong items.*
+- *Change 2: Extended `_AGGREGATIVE_PATTERN` to add `increase` and `page count` — covers 2 of 4 L-34 retrieval-miss failures.*
+
+**Results: overall 75.2% (+1.0pp, NEW BEST). MS flat at 66.1% (net 0: 6 fixed, 6 broken). Temporal +4.7pp (66.9%→71.7%) — unexpected gain from pattern expansion firing on temporal "how long"/"how many months" questions.**
+
+| Category | L-34 | L-35 | Delta | Note |
+|---|---|---|---|---|
+| **temporal-reasoning** | **66.9% (n=127)** | **71.7%** | **+4.7pp** | pattern expansion now fires on temporal "how long"/"how many months" phrasing |
+| abstention | 80.0% (n=30) | 86.7% | +6.7pp | +2 correct; within noise |
+| **multi-session** | **66.1% (n=121)** | **66.1%** | **0.0pp** | **6 over-count/calculation fixed, 6 previously-correct broken — net zero** |
+| knowledge-update | 80.6% (n=72) | 80.6% | 0.0pp | |
+| single-session-user | 82.8% (n=64) | 82.8% | 0.0pp | |
+| single-session-assistant | 96.4% (n=56) | 92.9% | −3.6pp | judge noise (−2 questions) |
+| single-session-preference | 56.7% (n=30) | 53.3% | −3.3pp | judge noise (−1 question) |
+| **OVERALL** | **74.2%** | **75.2%** | **+1.0pp** | **new best** |
+
+*MS failure analysis: check (1) "directly answers what the question asks" is the culprit for broken cases — too vague, causes model to abstain unnecessarily (`3fdac837`: "cannot be calculated"; `7405e8b1`: "I cannot determine") or exclude legitimate facts (`f0e564bc`: $1,000 vs $1,300; `92a0aa75`: 8 months vs 1y5m). MS fixed cases: `2e6d26dc` (over-count), `gpt4_194be4b3` (over-count), `gpt4_d12ceb0e` (wrong-math), `gpt4_15e38248` (under-count), `1a8a66a6` (under-count), `a11281a2` (pattern extension). The temporal gain is from `increase` pattern extension + "how long"/"how many months" phrasing in temporal questions triggering expansion.*
+
+*L-36 direction: drop check (1), keep time-period filter (check 2) and dedup (check 3), add explicit anti-abstention clause ("Never refuse to answer").*
+
+*Overall trajectory: 74.2% (L-33=L-34) → 75.2% (L-35). MS: 66.1% (L-34) → 66.1% (L-35, flat). Temporal: 66.9% → 71.7% (+4.7pp). Remaining MS gap: 33.9% (41/121 failures). Over-count remains dominant at 19/41.*
 
 **Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.

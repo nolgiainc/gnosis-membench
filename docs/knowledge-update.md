@@ -15,6 +15,7 @@ LongMemEval_S's knowledge-update (KU) category tests whether a system returns th
 | **L-32 (2026-08-10)** | **81.9%** | **72.6%** | Enumeration clause fix + multi-query expansion for MS (no re-ingest) |
 | **L-33 (2026-08-10)** | **81.9%** | **74.2%** | Extended aggregative pattern + 4 sub-queries + set-based dedup (no re-ingest) — new best overall |
 | **L-34 (2026-08-10)** | **80.6%** | **74.2%** | Math instruction appended to aggregative MS retrieved context (no re-ingest) — MS +5.8pp (66.1%), overall ties L-33 |
+| **L-35 (2026-08-10)** | **80.6%** | **75.2%** | Conservative math instruction (3-check filter) + `increase`/`page count` pattern extension — MS flat (66.1%, 6 fixed / 6 broken), temporal +4.7pp (71.7%), **overall +1.0pp → NEW BEST** |
 
 **L-31 result: KU 70.8% → 80.6% (+9.8pp).** Structural fix confirmed. Net overall −2.6pp due to regressions SSA −3.6pp, temporal −7.9pp, SSU −6.3pp, MS −4.2pp. Regressions confirmed NOT from SUPERSEDES logic (routing identical to L-25b for SSA/temporal; only 28 facts have valid_to set) — ingest variation from fresh reingest explains the spread.
 
