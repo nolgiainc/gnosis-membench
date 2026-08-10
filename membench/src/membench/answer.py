@@ -41,18 +41,15 @@ _AGGREGATIVE_PATTERN: re.Pattern[str] = re.compile(
 )
 
 _SUBQUERY_PROMPT = (
-    "Generate 4 short alternative search queries (5–10 words each) to find "
+    "Generate 2 short alternative search queries (5–10 words each) to find "
     "memories related to this question using different vocabulary. "
-    "Return only the 4 queries, one per line.\n\nQuestion: {question}"
+    "Return only the 2 queries, one per line.\n\nQuestion: {question}"
 )
 
 _MATH_NOTE = (
     "\n\n[instruction]\n"
-    "Before counting, apply two filters: "
-    "(1) if the question specifies a time period, exclude items that clearly fall outside it; "
-    "(2) if the same event appears multiple times with different phrasing, count it once. "
-    "Never refuse to answer — use your best estimate from the remaining items. "
-    "List the confirmed items and compute your answer step by step."
+    "List every relevant value found above (including supplemental), "
+    "compute your answer step by step, then state the final result."
 )
 
 CONDITIONS = ("context", "search")
@@ -149,12 +146,12 @@ def _expand_with_subqueries(
     except Exception:
         return retrieved
 
-    subqueries = [ln.strip() for ln in raw.splitlines() if ln.strip()][:4]
+    subqueries = [ln.strip() for ln in raw.splitlines() if ln.strip()][:2]
     seen: set[str] = {line[2:82] for line in retrieved.splitlines() if line.startswith("- ")}
     extra: list[str] = []
     for sq in subqueries:
         try:
-            results = gnosis.search(scope, sq, limit=10)
+            results = gnosis.search(scope, sq, limit=5)
         except Exception:
             continue
         for r in results:
