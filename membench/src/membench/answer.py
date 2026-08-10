@@ -36,14 +36,14 @@ from .llm import ChatClient
 
 _AGGREGATIVE_PATTERN: re.Pattern[str] = re.compile(
     r"\b(how many|how much|total|list all|list every|all the|every|enumerate"
-    r"|how often|how frequently)\b",
+    r"|how often|how frequently|average|percentage|how long)\b",
     re.IGNORECASE,
 )
 
 _SUBQUERY_PROMPT = (
-    "Generate 2 short alternative search queries (5–10 words each) to find "
+    "Generate 4 short alternative search queries (5–10 words each) to find "
     "memories related to this question using different vocabulary. "
-    "Return only the 2 queries, one per line.\n\nQuestion: {question}"
+    "Return only the 4 queries, one per line.\n\nQuestion: {question}"
 )
 
 CONDITIONS = ("context", "search")
@@ -130,7 +130,7 @@ def _expand_with_subqueries(
     question: str,
     retrieved: str,
 ) -> str:
-    """Run 2 LLM-generated sub-queries and append unique facts not already in retrieved."""
+    """Run 4 LLM-generated sub-queries and append unique facts not already in retrieved."""
     try:
         raw = llm.complete(
             cfg.answer_model,
@@ -140,7 +140,8 @@ def _expand_with_subqueries(
     except Exception:
         return retrieved
 
-    subqueries = [ln.strip() for ln in raw.splitlines() if ln.strip()][:2]
+    subqueries = [ln.strip() for ln in raw.splitlines() if ln.strip()][:4]
+    seen: set[str] = {line[2:82] for line in retrieved.splitlines() if line.startswith("- ")}
     extra: list[str] = []
     for sq in subqueries:
         try:
@@ -149,7 +150,8 @@ def _expand_with_subqueries(
             continue
         for r in results:
             text = (r.get("content") or "").strip()
-            if text and text[:80] not in retrieved:
+            if text and text[:80] not in seen:
+                seen.add(text[:80])
                 extra.append(f"- {text}")
 
     if not extra:

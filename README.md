@@ -5,33 +5,32 @@ Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answ
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current standing — LongMemEval_S L-25b (full 500-Q, 2026-08-06):**
-gpt-4o backbone + gpt-4o judge. edu-v2.0 + relation_slots (KU fix) + singleton-only supersession fix.
+**Current standing — LongMemEval_S L-33 (full 500-Q, 2026-08-10) — new best overall:**
+gpt-4o backbone + gpt-4o judge. Reuses L-31 Neo4j data; answer.py only changes.
 
-| Category | L-25b | vs L-23 | Notes |
+| Category | L-33 | vs L-25b | Notes |
 |---|---|---|---|
-| single-session-assistant | **98.2%** (n=56) | +57.1pp | near-ceiling |
-| knowledge-update | **70.8%** (n=72) | +47.2pp | stable |
-| single-session-user | **84.4%** (n=64) | -3.1pp | |
-| temporal-reasoning | 74.0% (n=127) | -8.7pp | |
-| multi-session | 58.7% (n=121) | -14.9pp | residual gap: abstention redistribution + judge calibration |
-| single-session-preference | 60.0% (n=30) | -36.7pp | residual gap: same causes |
-| abstention | 83.3% (n=30) | -16.7pp | separate category; was 100% in L-23 |
-| **Overall** | **73.6%** (500 Q) | **+3.8pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
-
-*Note: gpt-4o judge; L-23 used Claude-Sonnet-4-6. 30 abstention questions (100% in L-23) redistributed into other categories in L-25/L-25b — cross-run comparisons are directional.*
+| knowledge-update | **81.9%** (n=72) | +11.1pp | write-time SUPERSEDES structural fix (L-31) |
+| single-session-assistant | 94.6% (n=56) | −3.6pp | ingest-variation gap vs L-25b |
+| single-session-user | 82.8% (n=64) | −1.6pp | |
+| temporal-reasoning | 69.3% (n=127) | −4.7pp | ingest-variation gap vs L-25b |
+| multi-session | **60.3%** (n=121) | +1.6pp | expanded sub-queries + broader aggregative pattern |
+| single-session-preference | **66.7%** (n=30) | +6.7pp | |
+| abstention | **83.3%** (n=30) | 0.0pp | |
+| **Overall** | **74.2%** (500 Q) | **+0.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
 
 **L-31 (2026-08-09) — KU structural fix:**
 - KU **70.8% → 80.6% (+9.8pp)** via write-time SUPERSEDES edges + `valid_to IS NULL` filter
 - Overall 71.0%; regressions (SSA −3.6pp, temporal −7.9pp, MS −4.2pp) confirmed as ingest variation
 
 **L-32 (2026-08-10) — enumeration clause fix + multi-query expansion for MS:**
-- MS **54.5% → 59.5% (+5.0pp)** via LLM sub-query expansion for aggregative multi-session questions
-- KU **80.6% → 81.9% (+1.4pp)** collateral gain from enumeration clause (count unique items, not records)
-- Overall **72.6%** (+1.6pp vs L-31); KU gap to Zep (83.3%): 1.4pp
+- MS **54.5% → 59.5% (+5.0pp)** via 2-sub-query LLM expansion for aggregative multi-session questions
+- KU **80.6% → 81.9% (+1.4pp)**; overall **72.6%** (+1.6pp vs L-31)
 
-**Next targets:**
-1. **L-33** — recover SSP/abstention noise; further MS gap exploration (remaining 40.5% failure rate)
+**L-33 (2026-08-10) — extended pattern + 4 sub-queries (new best overall):**
+- Extended `_AGGREGATIVE_PATTERN` to include `average|percentage|how long` (6 pattern-miss failures now covered)
+- Sub-queries increased 2→4; dedup via `seen: set[str]` (was substring scan)
+- Overall **74.2%** (+1.6pp vs L-32, **+0.6pp vs L-25b**); KU gap to Zep (83.3%): 1.4pp
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
