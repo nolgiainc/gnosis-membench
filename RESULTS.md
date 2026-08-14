@@ -962,6 +962,9 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | **gnosis L-33** | **74.2%** | **81.9%** | **60.3%** | 69.3% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; extended aggregative pattern (added average/percentage/how long) + 4 sub-queries (was 2) + set-based dedup; MS +0.8pp (59.5%→60.3%), temporal +1.6pp, SSU +1.6pp, SSP +10.0pp, abstention +6.6pp; SSA -1.8pp (within noise at n=56); KU flat; net +1.6pp vs L-32; **new best overall** (74.2% vs L-25b 73.6%); no re-ingest |
 | — | **gnosis L-34** | **74.2%** | 80.6% | **66.1%** | 66.9% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; math instruction appended to retrieved context for aggregative multi-session questions ("list every value, compute step by step"); MS **+5.8pp** (60.3%→66.1%, +7 questions); SSA +1.8pp; SSP -10.0pp, temporal -2.4pp, KU -1.4pp (all judge noise — math note does not fire for these categories); overall ties L-33 at 74.2%; no re-ingest |
 | — | **gnosis L-35** | **75.2%** | 80.6% | **66.1%** | **71.7%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; conservative math instruction (3-check filter before counting) + pattern extension (added `increase`, `page count`); MS flat (66.1%, 6 fixed / 6 broken: check-1 "directly answers" too vague → abstention-induced failures); temporal **+4.7pp** (71.7%) from pattern expansion firing on "how long" / "how many months" temporal questions; abstention +6.7pp; overall **+1.0pp → 75.2% NEW BEST**; no re-ingest |
+| — | gnosis L-36 | 74.8% | 81.9% | 65.3% | 70.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; refined math instruction (dropped check-1, added anti-abstention clause); net -0.4pp vs L-35; answer.py tuning confirmed at noise floor |
+| — | gnosis L-37 | 75.2% | 81.9% | 66.1% | 71.7% | Full 500-Q; 2026-08-10; reduced supplemental 4×10→2×5; ties L-35 |
+| — | **gnosis L-38** | **75.2%** | **84.7%** | 60.3% | **74.8%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-13; **fresh re-ingest** of all 500 conversations (concurrency 4 for safety); KU **+4.1pp** (84.7%), temporal **+3.1pp** (74.8%), SSP **+13.4pp** (66.7%), SSA +1.7pp; SSU -6.2pp, MS -5.8pp, Abs -3.4pp; overall ties L-35 at 75.2%; confirms ingest variance ≈ ±6pp per category; meaningful headroom requires gnosis algorithm changes |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1152,6 +1155,35 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 *L-36 direction: drop check (1), keep time-period filter (check 2) and dedup (check 3), add explicit anti-abstention clause ("Never refuse to answer").*
 
 *Overall trajectory: 74.2% (L-33=L-34) → 75.2% (L-35). MS: 66.1% (L-34) → 66.1% (L-35, flat). Temporal: 66.9% → 71.7% (+4.7pp). Remaining MS gap: 33.9% (41/121 failures). Over-count remains dominant at 19/41.*
+
+**Gnosis L-36 (2026-08-10, COMPLETE) — refined math instruction without check-1:**
+- *Change: dropped check (1) "directly answers what the question asks" (too vague, caused abstention failures in L-35), kept time-period filter (check 2) and dedup (check 3), added explicit anti-abstention clause ("Never refuse to answer if any relevant values are present").*
+
+**Results: overall 74.8% (-0.4pp vs L-35). answer.py tuning confirmed at the noise floor — no further instruction changes can break the plateau.**
+
+**Gnosis L-37 (2026-08-10, COMPLETE) — reduced supplemental expansion:**
+- *Change: reduced sub-query expansion from 4 sub-queries × limit=10 to 2 sub-queries × limit=5, targeting over-count failures from supplemental noise.*
+
+**Results: overall 75.2% (ties L-35). MS flat. Reducing supplemental width neither fixed over-count nor broke under-count — noise cancels.**
+
+**Gnosis L-38 (2026-08-13, COMPLETE) — fresh re-ingest to recover ingest variance:**
+- *Motivation: L-35 SSA (92.9%) and temporal (71.7%) both lagged L-25b (98.2%, 74.0%) by 5.3pp and 2.3pp, attributed to L-31 fresh-ingest variance. Re-ingest with current gnosis code (all L-31+ improvements) expected to recover those gaps.*
+- *Process: deleted stack_neo4j-data Docker volume, rebuilt stack, re-ingested all 500 conversations. First attempt at concurrency 64 produced 659 session SKIPs across 16 conversations (Neo4j 500 errors under high concurrency load). Fixed by removing the 16 affected conversations from the done list and re-ingesting at concurrency 4.*
+
+**Results: overall 75.2% (ties L-35). Net wash — category-level wins and losses cancel.**
+
+| Category | L-35 | L-38 | Delta |
+|---|---|---|---|
+| single-session-assistant (n=56) | 92.9% | **94.6%** | +1.7pp |
+| single-session-user (n=64) | 82.8% | 76.6% | -6.2pp |
+| single-session-preference (n=30) | 53.3% | **66.7%** | +13.4pp |
+| knowledge-update (n=72) | 80.6% | **84.7%** | +4.1pp |
+| temporal-reasoning (n=127) | 71.7% | **74.8%** | +3.1pp |
+| multi-session (n=121) | 66.1% | 60.3% | -5.8pp |
+| abstention (n=30) | 86.7% | 83.3% | -3.4pp |
+| **OVERALL** | **75.2%** | **75.2%** | **0.0pp** |
+
+*Key finding: ingest variance accounts for ±6pp swings on individual categories with identical gnosis code. The 75.2% ceiling for answer.py + re-ingest tuning is confirmed. Temporal improved +3.1pp as hoped (ingest variance was real), SSA +1.7pp. But SSU -6.2pp and MS -5.8pp regressed by equivalent amounts — the distribution of noise shifted, not the true accuracy. Meaningful next step requires gnosis algorithmic changes (BM25 weighting, community subgraph, temporal validity intervals) rather than answer.py or re-ingest.*
 
 **Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
