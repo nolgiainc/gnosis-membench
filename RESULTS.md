@@ -965,6 +965,7 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-36 | 74.8% | 81.9% | 65.3% | 70.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; refined math instruction (dropped check-1, added anti-abstention clause); net -0.4pp vs L-35; answer.py tuning confirmed at noise floor |
 | — | gnosis L-37 | 75.2% | 81.9% | 66.1% | 71.7% | Full 500-Q; 2026-08-10; reduced supplemental 4×10→2×5; ties L-35 |
 | — | **gnosis L-38** | **75.2%** | **84.7%** | 60.3% | **74.8%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-13; **fresh re-ingest** of all 500 conversations (concurrency 4 for safety); KU **+4.1pp** (84.7%), temporal **+3.1pp** (74.8%), SSP **+13.4pp** (66.7%), SSA +1.7pp; SSU -6.2pp, MS -5.8pp, Abs -3.4pp; overall ties L-35 at 75.2%; confirms ingest variance ≈ ±6pp per category; meaningful headroom requires gnosis algorithm changes |
+| — | gnosis L-39 | 74.0% | 83.3% | 64.5% | 70.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-27; **weighted RRF** (`GNOSIS_RRF_LEXICAL_WEIGHT=2.0`); MS **+4.2pp** (64.5%), SSU +1.5pp; SSP -10.0pp, Abs -6.6pp, temporal -4.7pp; net -1.2pp vs L-38; **REJECTED** — BM25 over-weighting harms preference/abstention/temporal categories; equal-weight RRF (1.0) reverted |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -1184,6 +1185,25 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | **OVERALL** | **75.2%** | **75.2%** | **0.0pp** |
 
 *Key finding: ingest variance accounts for ±6pp swings on individual categories with identical gnosis code. The 75.2% ceiling for answer.py + re-ingest tuning is confirmed. Temporal improved +3.1pp as hoped (ingest variance was real), SSA +1.7pp. But SSU -6.2pp and MS -5.8pp regressed by equivalent amounts — the distribution of noise shifted, not the true accuracy. Meaningful next step requires gnosis algorithmic changes (BM25 weighting, community subgraph, temporal validity intervals) rather than answer.py or re-ingest.*
+
+**Gnosis L-39 (2026-08-27, COMPLETE) — weighted RRF: 2× BM25 weight (`GNOSIS_RRF_LEXICAL_WEIGHT=2.0`):**
+- *Motivation: "Is Grep All You Need?" (arXiv:2605.15184) reports BM25 outperforms dense vectors on LME for every model pair; L-38's MS gap (60.3%) and ingest analysis both pointed to retrieval as the bottleneck. Hypothesis: equal-weight RRF under-values BM25 — doubling lexical weight would promote keyword-matched facts for multi-session and knowledge-update queries.*
+- *Implementation: configurable `gnosis_rrf_lexical_weight` field in Settings; `fuse_memory_rankings()` applies `weight/(k+rank)` with 1.0 for dense and `lexical_weight` for BM25. No re-ingest needed (read-path only).*
+
+**Results: overall 74.0% (-1.2pp vs L-38 75.2%). REJECTED.**
+
+| Category | L-38 | L-39 | Delta |
+|---|---|---|---|
+| single-session-assistant (n=56) | **94.6%** | **94.6%** | 0.0pp |
+| single-session-user (n=64) | 76.6% | **78.1%** | +1.5pp |
+| single-session-preference (n=30) | **66.7%** | 56.7% | -10.0pp |
+| knowledge-update (n=72) | **84.7%** | 83.3% | -1.4pp |
+| temporal-reasoning (n=127) | **74.8%** | 70.1% | -4.7pp |
+| multi-session (n=121) | 60.3% | **64.5%** | +4.2pp |
+| abstention (n=30) | **83.3%** | 76.7% | -6.6pp |
+| **OVERALL** | **75.2%** | 74.0% | **-1.2pp** |
+
+*Key finding: 2× BM25 weight captures MS +4.2pp and SSU +1.5pp gains (keyword matching helps factual entity retrieval) but badly hurts SSP (-10.0pp), Abstention (-6.6pp), and Temporal (-4.7pp). The pattern is clear: lexical over-weighting promotes high-overlap keyword hits that are semantically wrong for preference/abstention/temporal questions. Equal-weight RRF reverted (`GNOSIS_RRF_LEXICAL_WEIGHT=1.0`). A route-aware weight (high BM25 weight only for `aggregative`/`multi_hop` routes, 1.0 elsewhere) could capture MS gains without the SSP/Temporal/Abstention losses.*
 
 **Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.

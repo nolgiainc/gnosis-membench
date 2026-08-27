@@ -82,6 +82,8 @@ services:
       GNOSIS_FACT_EXTRACTION_ENABLED: ${GNOSIS_FACT_EXTRACTION_ENABLED:-false}
       # hybrid run, 2026-07-03: BM25+dense RRF fusion (gnosis PR #15)
       GNOSIS_HYBRID_RETRIEVAL_ENABLED: ${GNOSIS_HYBRID_RETRIEVAL_ENABLED:-false}
+      # L-39: weighted RRF — lexical weight multiplier (1.0 = equal, 2.0 = 2× BM25)
+      GNOSIS_RRF_LEXICAL_WEIGHT: ${GNOSIS_RRF_LEXICAL_WEIGHT:-1.0}
       # LongMemEval campaign, 2026-07-04: scope-narrowed dense retrieval
       # (gnosis PR #46). Required for validity of multi-user single-store
       # benchmarking - LongMemEval instances share haystack sessions, so the
