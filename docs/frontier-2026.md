@@ -1,17 +1,18 @@
-# Agent-Memory Frontier, July 2026: Dissection and Next Techniques for gnosis
+# Agent-Memory Frontier, July–August 2026: Dissection and Next Techniques for gnosis
 
-*Updated 2026-07-17. Every load-bearing score or technique claim below was verified
+*Updated 2026-08-09. Every load-bearing score or technique claim below was verified
 against a primary source (arXiv paper, official repo, or controlled third-party
 evaluation). Vendor-only self-reports are flagged explicitly and not used as
 technique recommendations.*
 
-**Where gnosis stands (Run 23, 2026-07-04):** Full-LOCOMO (all 10 conversations),
-GPT-5.5 judge — excl-adv J 66.9–68.9 at parity with mem0 (66.88); full-LME_S
-baseline L-0 in progress. Leads: single-hop (F1 60.9, J 77.0–77.8 vs mem0 67.13),
-temporal J (73.8 vs mem0^g 58.13), adversarial (83.9). Weaknesses: open-domain
-(J 29.2 vs Zep 76.60), multi-hop (J 41.5 vs frontier ~85+). Primary target:
-LongMemEval_S (500 questions, 5 ability axes including knowledge-update and
-abstention that LOCOMO lacks).
+**Where gnosis stands (LME_S, 2026-08-09):**
+- **L-25b (current best overall):** 73.6% (500 Q, gpt-4o backbone + judge). edu-v2.0 + relation_slots + singleton-only supersession. SSA 98.2%, KU 70.8%, SSU 84.4%, temporal 74.0%, MS 58.7%, SSP 60.0%, abstention 83.3%.
+- **L-31 (KU structural fix):** 72.6% overall, **KU 81.9% (+11.1pp confirmed)**. Write-time SUPERSEDES edges + `valid_to IS NULL` Cypher filter for `knowledge_update` route. Unexpected regressions: SSA −5.3pp (92.9%), temporal −6.3pp (67.7%), SSU −4.7pp (79.7%) — likely `knowledge_update` router misfiring on SSA/temporal questions (same pattern as L-29). Net −1.0pp; L-25b remains best overall.
+- KU trajectory: 23.6% → 70.8% → **81.9%** (vs Zep 83.3%, Chronos 100%)
+
+**LOCOMO (Run 23, 2026-07-04):** Full-LOCOMO, GPT-5.5 judge — excl-adv J 66.9–68.9
+at parity with mem0 (66.88). Leads: single-hop (F1 60.9, J 77.0–77.8), temporal J
+(73.8), adversarial (83.9). Weakness: open-domain (J 29.2 vs Zep 76.60).
 
 ---
 
@@ -90,7 +91,8 @@ are from self-reports or third-party papers — scores are not directly comparab
 | Zep (arXiv:2501.13956) | **71.2%** | Self-reported | GPT-4o backbone; KU 83.3%, Multi-session 57.9%, Temporal 62.4% |
 | **Mem0** | **67.6%** | TiMem paper (3rd-party) | GPT-4o backbone. **Self-reported 94.4% is unverified and inconsistent with all third-party evaluations — disregard.** Scores vary 49–68% across papers. |
 | gnosis L-23 | **69.8%** | This campaign | Full 500-Q, Claude-Sonnet-4-6 backbone + judge; 2026-07-31 |
-| gnosis L-25 | *in progress* | This campaign | edu-v2.0 + relation_slots; ingest 2026-08-04→05 |
+| gnosis L-25 | **72.4%** | This campaign | edu-v2.0 + relation_slots; completed 2026-08-05 |
+| **gnosis L-25b** | **73.6%** | This campaign | + singleton-only supersession; gpt-4o backbone + judge; **current best** (2026-08-06) |
 
 **Knowledge-update is the clearest performance divide.** Chronos achieves 100%
 KU because its event calendar structure makes temporal supersession deterministic.
@@ -411,25 +413,76 @@ are much closer.
 
 ---
 
-## 10. Benchmark posture (updated July 2026)
+## 10. New papers — post July 15, 2026
+
+Papers that arrived after the initial July 17 sweep and inform L-31+.
+
+### arXiv:2607.26520 — Graph-Native Bitemporal Memory Store (July 29)
+- **Core idea:** Neo4j-native bitemporal model. Each memory is an immutable identity
+  node with versioned content nodes carrying two time intervals: `valid_time` (when true
+  in the world) and `transaction_time` (when recorded). Write-time semantic edges between
+  related memories (`SUPERSEDES`, `REFERENCES`) make cross-session linking structural.
+- **Relevance:** Direct blueprint for L-31. The `valid_time.end IS NULL` filter at query
+  time is exactly `f.valid_to IS NULL` in gnosis's Cypher. We implement the core pattern
+  (write-time SUPERSEDES + valid_to filter) without the full dual-timeline overhead.
+- **L-31 use:** This paper validates the structural approach. Every 90%+ KU system
+  implements some variant of this.
+
+### arXiv:2608.04746 — Scrub Jay Episodic Memory (August 4)
+- **Core idea:** Per-memory perishability score π_i and utility horizon τ_i in a
+  What-Where-When tuple. Retrieval scoring is query-adaptive; stale facts decay below
+  fresh ones as a function of time × volatility. Introduces TGT (Temporal Generalization
+  Test) benchmark.
+- **Relevance:** Complements L-31 — instead of binary `valid_to IS NULL`, per-memory
+  temporal decay would provide gradient ranking (facts don't flip from "active" to "dead"
+  instantly; they decay toward irrelevance). Addresses cases where relation_slots
+  doesn't cover (e.g., preferences that gradually change).
+- **Timing:** Watch as a potential L-33 technique if L-31 shows remaining KU failures
+  from facts without relation_slots coverage.
+
+### arXiv:2608.00009 — AgentMemBench (August 2026)
+- **Core idea:** Controlled comparison of 5 memory strategies under identical conditions
+  on LoCoMo and MSC. Graph-based episodic memory (GEM) + compression-based summarization
+  (CBS) are the strongest combination for multi-session tasks.
+- **Relevance:** Directly addresses our 57.9% MS gap. GEM = structured graph retrieval
+  (what we already have), CBS = periodic background summarization across sessions (we
+  don't have this). Multi-session questions like "how many times did I go to the gym?"
+  would benefit from CBS pre-computing cross-session aggregates.
+- **L-32 use:** CBS is the right design for MS improvement; EverMemOS multi-query
+  expansion is the lighter-weight implementation-first approach.
+
+### arXiv:2607.21962 — Ground Truth First (July 24)
+- **Core idea:** Plants facts with per-fact validity intervals and volatility classes
+  (highly-perishable vs. stable), generates questions from them. Inverts the benchmark
+  pipeline: ground truth → questions, not conversations → ground truth.
+- **Relevance:** The volatility taxonomy (singleton vs. additive) is exactly
+  `is_singleton_relation_class()` in gnosis's supersession logic. Validates our design
+  choice for which facts participate in write-time SUPERSEDES.
+
+### arXiv:2607.16848 — Beyond Memory Leaderboards (July 18)
+- **Core idea:** Retrieval budget (context tokens per query) varies wildly across systems.
+  Graphiti wins one benchmark using 2.6M chars/query; under budget control the gap
+  disappears. Top-leaderboard scores are not directly comparable to gnosis's eval.
+- **Relevance:** Contextualizes the 21pp gap to Chronos/SOTA. Some of that gap is
+  methodology/budget, not pure architecture. Does NOT mean the gap is illusory — the
+  structural techniques (SUPERSEDES, event calendar) are real — but it means reaching
+  84-85% may close more of the EFFECTIVE gap than the raw numbers suggest.
+
+---
+
+## 11. Benchmark posture (updated 2026-08-09)
 
 **Primary target: LongMemEval_S** (500 questions, stable gpt-4o judge, 5 axes
-that map directly to our gaps). Frozen 100-instance subset is the inner loop;
-full 500 is the competitor comparison. Current L-0 baseline in progress.
+that map directly to our gaps). Full 500 is the competitor comparison. L-25b is
+the current best overall (73.6%); L-31 is the current best KU (81.9%).
 
-**Key LME_S axes for gnosis (updated 2026-08-05, L-23 measured):**
-- **Knowledge-update (23.6%):** primary gap confirmed. Fix implemented in L-25:
-  `relation_slots` metadata enables relation-class-aware supersession (entity+relation
-  grouping) instead of entity-only. Deterministic read-time newest-wins per slot.
-- **Single-session-assistant (41.1%):** secondary gap confirmed. Fix implemented in L-25:
-  edu-v2.0 Rule 15 explicitly extracts assistant-turn commitments, recommendations, and
-  stated facts. Backed by Memanto ([arXiv 2604.22085](https://arxiv.org/abs/2604.22085)).
-- **Multi-session (73.6%):** solid; T1 (community graph) may improve further.
-- **Temporal-reasoning (82.7%):** strong; transfers from LOCOMO work.
-- **Abstention (100.0%), SSP (96.7%), SSU (87.5%):** strong — CoN instruction working.
-
-**L-25 is in progress** (ingest 2026-08-04→05; answer+grade next). Results will determine
-whether KU/SSA gaps close, and what the next lever is.
+**Key LME_S axes for gnosis (L-31 measured 2026-08-09):**
+- **Knowledge-update (81.9% L-31, was 70.8% L-25b):** write-time SUPERSEDES structural fix delivered +11.1pp. Gap to Zep (83.3%): 1.4pp. Gap to Chronos (100%): 18.1pp. L-31 net was −1.0pp overall due to regressions — next: diagnose router misclassification.
+- **Single-session-assistant (92.9% L-31, was 98.2% L-25b):** regressed in L-31; L-25b remains the SSA high-water mark. Router likely misfiring SSA questions as knowledge_update.
+- **Multi-session (58.7%):** unchanged across all L-25b through L-31 experiments. Multi-query expansion (L-32) is the next lever; EverMemOS approach fires on 31% of queries.
+- **Temporal-reasoning (67.7% L-31, was 74.0% L-25b):** regressed in L-31 (−6.3pp). Largest single regression; router over-fires `knowledge_update` on temporal questions.
+- **SSP (63.3% L-31, was 60.0% L-25b):** improved +3.3pp in L-31.
+- **Abstention (83.3%):** stable across L-25b/L-31.
 
 **LOCOMO subset-3:** Keep as the regression gate at Run 18 config (~71 reproducible
 level). Never report subset-3 as a competitive claim. Run 23 is the competitive
@@ -463,3 +516,8 @@ reliability crisis, but its costs don't fit an inner optimization loop.
 | Spreading activation key to JordanMcCann | CONFIRMED | GitHub ablation notes |
 | "Is Grep All You Need?" BM25 > vectors on LME | CONFIRMED | arXiv:2605.15184 |
 | Zep community layer explains open-domain gap | STRONG INFERENCE | No direct ablation, but Memori ~30 pp gap maps to community layer as the structural difference |
+| arXiv:2607.26520 — bitemporal SUPERSEDES pattern for KU | CONFIRMED | Paper published July 29; describes Neo4j bitemporal with write-time semantic edges; `valid_time.end IS NULL` filter is the exact pattern implemented in L-31; measured KU gain +11.1pp (70.8%→81.9%) |
+| arXiv:2607.21962 — singleton/additive volatility taxonomy | CONFIRMED | Paper published July 24; "highly-perishable vs. stable" maps directly to gnosis `is_singleton_relation_class()` |
+| arXiv:2608.04746 — Scrub Jay perishability scoring | PLAUSIBLE | Published August 4; TGT benchmark not yet independently replicated; per-memory decay mechanism described in detail |
+| arXiv:2608.00009 — AgentMemBench GEM+CBS superiority | PLAUSIBLE | Published August 2026; CBS for cross-session aggregation not independently replicated |
+| arXiv:2607.16848 — retrieval budget inflates leaderboard gaps | CONFIRMED | Published July 18; Graphiti 2.6M chars/query vs controlled 73K; gap collapses under budget control |

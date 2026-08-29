@@ -1,6 +1,6 @@
 # LLM fact extraction at ingest — design spec
 
-Status: proposed (implementation-ready) · Owner: gnosis · Date: 2026-07-02
+Status: implemented — edu-v1 shipped Run 5 (gnosis PR #14, 2026-07-04); edu-v2.0 shipped L-25 (2026-08-04) · Owner: gnosis · Date: 2026-07-02
 
 ## 1. Why this is the lever
 
