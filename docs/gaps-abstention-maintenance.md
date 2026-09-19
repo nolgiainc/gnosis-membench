@@ -1,10 +1,14 @@
 # Literature gaps: abstention calibration & long-horizon memory maintenance
 
 Targeted research (2024–2026, primary sources where possible) on two gaps in our coverage.
-Context: gnosis scores LOCOMO 71.2 J (excl. adversarial) with extraction, but (a) the
-adversarial/abstention score dropped 74.1 → 67.9 as retrieval got richer, and (b) nothing we
-have built or measured addresses long-horizon maintenance (membench ingests once and asks
-immediately).
+
+**Current standing (2026-08-09):** gnosis LME_S L-25b: 73.6% overall (best overall); L-31: 72.6% overall, KU 81.9% (best KU). gpt-4o backbone + judge. The LOCOMO 71.2 J figure cited in the original context was a subset-3 dev gate score — the authoritative full-LOCOMO number is Run 23: excl-adv J **66.9–68.9** (at parity with mem0). Abstention (LME_S): 83.3% (n=30), stable between L-25b and L-31. KU (LME_S): 81.9% (L-31) vs 70.8% (L-25b) — Phase 1 and Phase 2 of the KU roadmap are complete; Phase 3 (dynamic retrieval guidance) queued after L-31 regression analysis.
+
+Context when this was written (2026-07-02): (a) the adversarial/abstention score dropped
+74.1 → 67.9 as retrieval got richer (LOCOMO), and (b) nothing we had built addressed
+long-horizon maintenance (membench ingests once and asks immediately). The maintenance gap
+is still open; abstention is partially addressed via CoN (which superseded the abstention
+prompt) and the sufficiency check. See notes in Gap 2 below for what's changed.
 
 ---
 
@@ -155,26 +159,23 @@ Mechanisms SOTA systems actually credit: (a) every fact timestamped with both ev
 observation time, (b) read-time or consolidation-time preference for the latest valid fact,
 (c) non-destructive supersession (keep the old fact, mark it superseded).
 
-### What this supports for the gnosis roadmap
+### What this supports for the gnosis roadmap (updated 2026-08-06)
 
-1. **Append-only + read-time recency: keep it, add deterministic supersession at read time.**
-   The strongest measured result in the space (2606.01435) is exactly this design: append
-   everything with timestamps, detect same-slot candidates at retrieval, pick newest
-   deterministically in code — not via the answer LLM and not via write-time DELETE. Zep-style
-   bi-temporal *invalidation as an LLM write-time process* is not supported by evidence
-   (7% FactConsolidation). **Bi-temporal timestamps (event-time + ingest-time) on every fact:
-   yes, now — cheap and a prerequisite for everything else. Bi-temporal invalidation logic at
-   write time: later or never.**
-2. **Scheduled reflection/consolidation: modest, conditional yes — for dedup, not fact
-   editing.** Mastra's Reflector shows consolidation can coexist with top knowledge-update
-   scores, but LongMemEval failure analyses show consolidation is also the main source of
-   overwrite errors. If added: merge near-duplicates and mark supersession links, never delete
-   originals.
-3. **Add a store-time quality gate eventually.** 2505.16067 shows indiscriminate accumulation
-   degrades results measurably; a cheap "worth storing / is this a duplicate" check is
-   evidence-backed.
+1. **Append-only + read-time recency: ✅ implemented (L-25, L-25b).** `GNOSIS_READ_SUPERSESSION_ENABLED`
+   with relation_slots slot grouping (newest-wins per singleton slot). KU went from 23.6% → 70.8%.
+   **Write-time structural layer: ✅ in progress (L-31).** SUPERSEDES edges + `valid_to IS NULL`
+   filter at query time — structural Chronos-equivalent. Zep-style LLM write-time invalidation remains
+   not recommended (7% FactConsolidation vs 78-94% deterministic).
 
-### Membench aging protocol (concrete)
+2. **Scheduled reflection/consolidation: not yet implemented.** Mastra's Reflector shows
+   consolidation can coexist with top KU scores, but LongMemEval failure analyses show
+   consolidation is also the main source of overwrite errors. If added: merge near-duplicates
+   and mark supersession links, never delete originals. Queued after L-31 regression analysis.
+
+3. **Store-time quality gate: ✅ partial.** `GNOSIS_FACT_DEDUPLICATION_ENABLED` provides
+   basic dedup at ingest. Full selective-addition gate (2505.16067) not yet implemented.
+
+### Membench aging protocol (concrete) ✅ IMPLEMENTED
 
 - **Phase A (ingest):** ingest LOCOMO/LongMemEval corpus normally; record baseline QA accuracy.
 - **Phase B (age):** inject, per conversation, N synthetic sessions containing (i) exact and

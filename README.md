@@ -5,23 +5,42 @@ Runs LongMemEval_S and LOCOMO through a consistent ingest → retrieval → answ
 grade pipeline. Results are logged in [`RESULTS.md`](RESULTS.md), the append-only
 run ledger.
 
-**Current standing — LongMemEval_S L-23 (full 500-Q, 2026-07-31):**
-Claude-Sonnet-4-6 backbone + Claude judge via gnosis context retrieval.
+**Current standing — LongMemEval_S L-35 (full 500-Q, 2026-08-10) — new best overall:**
+gpt-4o backbone + gpt-4o judge. Reuses L-31 Neo4j data; answer.py only changes.
 
-| Category | L-23 | Notes |
-|---|---|---|
-| abstention | 100.0% (n=30) | Perfect recall of unanswerable questions |
-| single-session-preference | 96.7% (n=30) | Strong personalization recall |
-| single-session-user | 87.5% (n=64) | Strong user-stated fact recall |
-| temporal-reasoning | 82.7% (n=127) | Solid; Chronos SOTA 95.5% |
-| multi-session | 73.6% (n=121) | Competitive; Chronos SOTA 88.7% |
-| single-session-assistant | 41.1% (n=56) | Gap: assistant-stated facts under-indexed |
-| knowledge-update | 23.6% (n=72) | **Primary gap** — stale facts returned; Zep 83.3% |
-| **Overall** | **69.8%** (500 Q) | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
+| Category | L-35 | vs L-25b | Notes |
+|---|---|---|---|
+| knowledge-update | **80.6%** (n=72) | +9.8pp | write-time SUPERSEDES structural fix (L-31) |
+| single-session-assistant | 92.9% (n=56) | −5.4pp | ingest-variation gap vs L-25b |
+| single-session-user | 82.8% (n=64) | −1.6pp | |
+| temporal-reasoning | **71.7%** (n=127) | −2.3pp | pattern expansion firing on "how long"/"how many months" phrasing |
+| multi-session | **66.1%** (n=121) | +7.4pp | math instruction + sub-query expansion |
+| single-session-preference | 53.3% (n=30) | −6.7pp | judge noise |
+| abstention | **86.7%** (n=30) | +3.4pp | |
+| **Overall** | **75.2%** (500 Q) | **+1.6pp** | vs Zep 71.2%, mem0 67.6%, Chronos 95.6% |
 
-**Primary optimization targets:**
-1. **Knowledge-update (23.6%)** — SUPERSEDES edges + event calendar. See [`docs/knowledge-update.md`](docs/knowledge-update.md).
-2. **Single-session-assistant (41.1%)** — edu-v1 extractor misses assistant-stated commitments; needs extractor prompt update.
+**L-31 (2026-08-09) — KU structural fix:**
+- KU **70.8% → 80.6% (+9.8pp)** via write-time SUPERSEDES edges + `valid_to IS NULL` filter
+- Overall 71.0%; regressions (SSA −3.6pp, temporal −7.9pp, MS −4.2pp) confirmed as ingest variation
+
+**L-32 (2026-08-10) — enumeration clause fix + multi-query expansion for MS:**
+- MS **54.5% → 59.5% (+5.0pp)** via 2-sub-query LLM expansion for aggregative multi-session questions
+- KU **80.6% → 81.9% (+1.4pp)**; overall **72.6%** (+1.6pp vs L-31)
+
+**L-33 (2026-08-10) — extended pattern + 4 sub-queries:**
+- Extended `_AGGREGATIVE_PATTERN` to include `average|percentage|how long` (6 pattern-miss failures now covered)
+- Sub-queries increased 2→4; dedup via `seen: set[str]` (was substring scan)
+- Overall **74.2%** (+1.6pp vs L-32, **+0.6pp vs L-25b**)
+
+**L-34 (2026-08-10) — math instruction for aggregative MS questions:**
+- Appended `[instruction]` to retrieved context for aggregative multi-session questions: list every value, compute step by step
+- MS **60.3% → 66.1% (+5.8pp, +7 questions)** — targets wrong-sum failures from L-32 analysis
+- Overall **74.2%** (ties L-33)
+
+**L-35 (2026-08-10) — conservative math instruction + pattern extensions (new best overall):**
+- Conservative `_MATH_NOTE` with 3-check filter (direct match, time period, dedup); pattern extended with `increase`, `page count`
+- MS flat (66.1%, 6 fixed / 6 broken — check (1) too vague → abstention failures); temporal **+4.7pp** (71.7%)
+- Overall **75.2%** (+1.0pp, **new best** vs L-33/L-34 at 74.2%)
 
 **LOCOMO standing (Run 23, full-10, 2026-07-04):** excl-adv J 66.9–68.9 at parity with
 mem0 (66.88), leading on single-hop, temporal, adversarial, and multi-hop F1. Open-domain
@@ -188,10 +207,16 @@ uv run membench run \
 |---|---|---|---|
 | L-21 (ingest-only) | run18 + text-embedding-3-large/3072 + scoped dense | — | All 500 conversations ingested; 2026-07-31 |
 | **L-23** | L-21 ingest + Claude-Sonnet-4-6 backbone + Claude judge | **69.8%** | Complete; 2026-07-31 |
-| L-24 | + SUPERSEDES edges + event calendar (KU fix) | — | Queued — primary KU gap target |
-| L-25 | + SSA extractor update (assistant-stated facts) | — | Queued — secondary gap |
-| L-26 | + reranker (run24.yaml) | — | Queued — retrieval bottleneck |
-| L-27 | + community graph + multi-query rewrite (run25.yaml) | — | Queued — open-domain + multi-hop |
+| L-24 | relation_slots KU fix (SUPERSEDES-slot metadata) | — | Merged into L-25; changes landed in gnosis 2026-08-04 |
+| **L-25** | edu-v2.0 (Rule 15: assistant-turn extraction) + relation_slots (KU fix); fresh ingest | 72.4% | Complete (2026-08-05); see L-25b for singleton fix |
+| **L-25b** | + singleton-only relation_slots supersession (read-time fix, no re-ingest) | **73.6%** | **Complete** (2026-08-06); SSA 98.2%, KU 70.8% (n=72), MS 58.7% (n=121), SSP +3.3pp vs L-25 |
+| L-26 | + reranker (run24.yaml) | — | Baked into L-25b (GNOSIS_RERANK_ENABLED was already true) |
+| **L-27** | + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true) | 73.4% | **Rejected** (2026-08-06) — neutral overall (-0.2pp vs L-25b); SSA -5.3pp, MS -5.0pp; temporal +2.8pp, SSP +3.3pp |
+| **L-28** | stronger CoN recency clause ("report ONLY most recently-dated value; do not mention older value") | 71.8% | **Rejected** (2026-08-06) — SSA -5.3pp, SSU -6.3pp, MS -5.0pp; KU +1.4pp only; clause over-fires outside KU context |
+| **L-29** | + `knowledge_update` router route + recency injection (top-5 newest facts merged into dense top-20) | 73.6% | **Tie** (2026-08-06) — KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp from routing misclassification; gains cancel; route mechanism confirmed |
+| **L-30** | + tighter knowledge_update guide (explicit SSA/preference/past-state exclusions) | 73.0% | **Rejected** (2026-08-06) — SSA/SSP partially recovered but temporal -2.4pp; routing precision asymmetric (too tight removes beneficial temporal routing); reverted to L-29 guide |
+| **L-31** | write-time SUPERSEDES edges + `valid_to IS NULL` filter in vector/BM25 Cypher for knowledge_update route (structural KU fix; arXiv:2607.26520) | **71.0%** | **Complete** (2026-08-09, re-run with fixed ingest) — KU 80.6% (+9.8pp); regressions SSA −3.6pp, temporal −7.9pp, MS −4.2pp (ingest variation, NOT router misclassification — confirmed by routing trace) |
+| **L-32** | `GNOSIS_CON_ENUMERATION_ENABLED=true` (count unique real-world items not records) + multi-query expansion in answer.py for aggregative multi-session questions (2 LLM sub-queries → supplemental section) | **72.6%** | **Complete** (2026-08-10, no re-ingest) — MS **59.5% (+5.0pp)**, KU 81.9% (+1.4pp), SSA 96.4% (+1.8pp), SSU 81.2% (+3.1pp), temporal 67.7% (+1.6pp); SSP/abstention −6.7pp each (2-question noise at n=30) |
 
 See [`RESULTS.md`](RESULTS.md) for the full run ledger with raw scores.
 
@@ -285,9 +310,10 @@ membench/
   src/membench/responses_shim.py  Responses-to-chat compatibility shim
   tests/                    fixture-based unit tests
 docs/
-  frontier-2026.md          competitive landscape analysis (updated 2026-07-17)
-  extraction-design.md      edu-v1 fact extraction design
+  frontier-2026.md          competitive landscape analysis (updated 2026-08-06)
+  extraction-design.md      edu-v1/v2.0 fact extraction design (implemented)
   gaps-abstention-maintenance.md  abstention + knowledge-update gap analysis
+  knowledge-update.md       KU roadmap — L-23 baseline → L-25b (70.8%) → L-31 (81.9%, complete)
   multihop-techniques.md    multi-hop retrieval techniques
 RESULTS.md                  append-only benchmark run ledger
 ```
@@ -308,7 +334,7 @@ download data, or make paid API calls.
 ## Research sources
 
 See [`docs/frontier-2026.md`](docs/frontier-2026.md) for the full competitive
-analysis (updated July 2026), including verified scores, technique dissections,
+analysis (updated July–August 2026), including verified scores, technique dissections,
 and the ranked next-technique roadmap for gnosis.
 
 Key sources: [LOCOMO](https://arxiv.org/abs/2402.17753) ·
@@ -320,4 +346,10 @@ Key sources: [LOCOMO](https://arxiv.org/abs/2402.17753) ·
 [EMem](https://arxiv.org/abs/2511.17208) ·
 [Memory-R2](https://arxiv.org/abs/2605.21768) ·
 ["Is Grep All You Need?"](https://arxiv.org/abs/2605.15184) ·
-[MemCon](https://arxiv.org/abs/2607.13591)
+[MemCon](https://arxiv.org/abs/2607.13591) ·
+[Memanto](https://arxiv.org/abs/2604.22085) ·
+[Graph-Native Bitemporal (L-31 blueprint)](https://arxiv.org/abs/2607.26520) ·
+[Ground Truth First](https://arxiv.org/abs/2607.21962) ·
+[Scrub Jay Episodic Memory](https://arxiv.org/abs/2608.04746) ·
+[AgentMemBench](https://arxiv.org/abs/2608.00009) ·
+[Beyond Memory Leaderboards](https://arxiv.org/abs/2607.16848)

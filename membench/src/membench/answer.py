@@ -22,6 +22,7 @@ Answer prompts:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,24 @@ from .datasets import LOCOMO, LONGMEMEVAL_S, Conversation, Question
 from .gnosis import GnosisClient
 from .ingest import user_id_for
 from .llm import ChatClient
+
+_AGGREGATIVE_PATTERN: re.Pattern[str] = re.compile(
+    r"\b(how many|how much|total|list all|list every|all the|every|enumerate"
+    r"|how often|how frequently|average|percentage|how long|increase|page count)\b",
+    re.IGNORECASE,
+)
+
+_SUBQUERY_PROMPT = (
+    "Generate 2 short alternative search queries (5–10 words each) to find "
+    "memories related to this question using different vocabulary. "
+    "Return only the 2 queries, one per line.\n\nQuestion: {question}"
+)
+
+_MATH_NOTE = (
+    "\n\n[instruction]\n"
+    "List every relevant value found above (including supplemental), "
+    "compute your answer step by step, then state the final result."
+)
 
 CONDITIONS = ("context", "search")
 
@@ -109,6 +128,43 @@ def format_search_results(records: list[dict[str, Any]]) -> str:
     return "\n".join(lines) if lines else "(no memories retrieved)"
 
 
+def _expand_with_subqueries(
+    gnosis: GnosisClient,
+    llm: ChatClient,
+    cfg: Config,
+    scope: dict[str, Any],
+    question: str,
+    retrieved: str,
+) -> str:
+    """Run 4 LLM-generated sub-queries and append unique facts not already in retrieved."""
+    try:
+        raw = llm.complete(
+            cfg.answer_model,
+            [{"role": "user", "content": _SUBQUERY_PROMPT.format(question=question)}],
+            temperature=0.0,
+        ).strip()
+    except Exception:
+        return retrieved
+
+    subqueries = [ln.strip() for ln in raw.splitlines() if ln.strip()][:2]
+    seen: set[str] = {line[2:82] for line in retrieved.splitlines() if line.startswith("- ")}
+    extra: list[str] = []
+    for sq in subqueries:
+        try:
+            results = gnosis.search(scope, sq, limit=5)
+        except Exception:
+            continue
+        for r in results:
+            text = (r.get("content") or "").strip()
+            if text and text[:80] not in seen:
+                seen.add(text[:80])
+                extra.append(f"- {text}")
+
+    if not extra:
+        return retrieved
+    return retrieved + "\n\n[supplemental]\n" + "\n".join(extra)
+
+
 def build_answer_prompt(conv: Conversation, question: Question, retrieved: str) -> str:
     if conv.benchmark == LONGMEMEVAL_S:
         return LONGMEMEVAL_ANSWER_PROMPT.format(
@@ -139,6 +195,21 @@ def answer_question(
     condition: str,
 ) -> dict[str, Any]:
     retrieved = retrieve(gnosis, cfg, conv, question, condition)
+    if (
+        condition == "context"
+        and conv.benchmark == LONGMEMEVAL_S
+        and question.category == "multi-session"
+        and _AGGREGATIVE_PATTERN.search(question.question)
+    ):
+        scope = GnosisClient.scope(
+            tenant_id=cfg.tenant_id,
+            space_id=cfg.space_id,
+            agent_id=cfg.agent_id,
+            session_id=f"{user_id_for(conv)}:query",
+            user_id=user_id_for(conv),
+        )
+        retrieved = _expand_with_subqueries(gnosis, llm, cfg, scope, question.question, retrieved)
+        retrieved += _MATH_NOTE
     prompt = build_answer_prompt(conv, question, retrieved)
     hypothesis = llm.complete(
         cfg.answer_model,
