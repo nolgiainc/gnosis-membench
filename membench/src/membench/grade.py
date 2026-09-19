@@ -34,13 +34,13 @@ from collections.abc import Callable
 from statistics import mean
 from typing import Any
 
-_GRADE_MAX_OUTER_RETRIES = 5
-_GRADE_RETRY_INITIAL = 5.0
-
 from nltk.stem import PorterStemmer
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 
 from .concurrency import map_streaming
+
+_GRADE_MAX_OUTER_RETRIES = 5
+_GRADE_RETRY_INITIAL = 5.0
 
 # ===========================================================================
 # LongMemEval — official judge prompt (verbatim from evaluate_qa.py)

@@ -4,7 +4,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from membench import datasets
+from membench import datasets, ingest
 from membench.config import Config
 from membench.gnosis import GnosisClient
 
@@ -130,3 +130,13 @@ class FakeChat:
 
     # answer.py calls .complete(...) on a ChatClient; grade.py takes a bare callable.
     complete = __call__
+
+
+@pytest.fixture(autouse=True)
+def _turn_pair_adds(monkeypatch):
+    """Pin the ingest batch to one user/assistant pair per add.
+
+    Production batches 20 turns per add (L-25+); the ingest tests were written
+    against pair-sized adds and assert on per-pair replay/retry behavior.
+    """
+    monkeypatch.setattr(ingest, "TURNS_PER_ADD", 2)
