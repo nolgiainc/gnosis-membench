@@ -1,6 +1,6 @@
 # LLM fact extraction at ingest — design spec
 
-Status: proposed (implementation-ready) · Owner: gnosis · Date: 2026-07-02
+Status: implemented — edu-v1 shipped Run 5 (gnosis PR #14, 2026-07-04); edu-v2.0 shipped L-25 (2026-08-04) · Owner: gnosis · Date: 2026-07-02
 
 ## 1. Why this is the lever
 
@@ -424,6 +424,56 @@ operator job) — no data loss, no migration.
 - **LOCOMO saturation:** 2026 surveys (MemoryArena) show LOCOMO-strong
   systems collapsing on active agentic tasks; keep LongMemEval_S on the
   roadmap as the second measure.
+
+## edu-v2.0 (2026-08-04) — assistant-turn extraction
+
+**Why.** L-23 measured SSA at 41.1% (n=56). Root cause: the edu-v1 exemplar used
+two human speakers (Alice and Bob) — there was no demonstration of extracting facts
+*attributed to the assistant*. The model treated assistant turns as response scaffolding
+rather than a source of durable knowledge.
+
+Evidence from Memanto ([arXiv 2604.22085](https://arxiv.org/abs/2604.22085)): assistant
+turns carry commitments, recommendations, how-to guidance, and stated facts that are
+exactly as worth remembering as user-disclosed facts. Without explicit extraction,
+assistant-perspective memory gaps persist regardless of retrieval improvements.
+
+**Changes from edu-v1.1 → edu-v2.0.**
+
+*Extraction version string:* `"edu-v2.0"` (stored in fact metadata; distinguishes
+pre- and post-v2.0 graphs in the same store).
+
+*Rule 15 (new):*
+```
+15. Extract from BOTH user and assistant turns. Assistant turns carry information just
+    as important as user turns: recommendations the assistant made, instructions or
+    how-to guidance the assistant provided, facts the assistant stated or explained,
+    and commitments the assistant made for future actions. For each such unit, attribute
+    it using the speaker label "assistant" (e.g., "The assistant recommended X", "The
+    assistant explained that Y", "The assistant committed to Z at the next session").
+    Never skip assistant turns because they are responses rather than disclosures — a
+    recommendation, a committed reminder, or a how-to instruction from the assistant
+    is exactly as worth remembering as a fact the user volunteered.
+```
+
+*Exemplar replaced:* The old exemplar (Alice/Bob, two humans) contained no assistant-
+attributed facts. The new exemplar uses a user/assistant exchange (Tokyo/Osaka keynote
+scenario) and produces 6 facts — 3 user-attributed and 3 assistant-attributed:
+
+| Unit | Turn | Attribution | Content |
+|---|---|---|---|
+| [0] | 1 | user | user presented at IRS in Tokyo |
+| [1] | 1 | user | IRS invited user to Osaka keynote next month |
+| [2] | 2 | assistant | The assistant recommended booking Osaka hotels ≥3 weeks out (April = cherry blossom season, prices spike) |
+| [3] | 2 | assistant | The assistant stated that the Shinkansen from Tokyo to Osaka takes approximately 2.5 hours |
+| [4] | 4 | assistant | The assistant committed to flagging the Osaka keynote venue A/V checklist at the start of the next conversation |
+| [5] | 5 | user | user dislikes long-haul flights but would fly anywhere for a keynote |
+
+This gives the model an explicit in-context demonstration that assistant turns are
+extraction sources, and that attribution uses "The assistant recommended/stated/committed".
+
+**Backward compatibility.** Facts extracted under edu-v1/v1.1 remain in the graph with
+their original `extraction_version`. v2.0 facts are additive; read paths are unchanged.
+A re-ingest with v2.0 writes new facts alongside old ones — no migration required.
 
 ## References
 

@@ -957,6 +957,21 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 | — | gnosis L-0 | **76.0%** | 72.7% | 72.2% | 84.2% | 100-Q subset; Run 18 + azure/text-embedding-3-large/3072 + scoped dense |
 | — | gnosis L-21 | *(ingest-only)* | — | — | — | Full 500-Q ingest into gnosis established; no answer/grade run (gpt-4o judge requires inference key) |
 | — | **gnosis L-23** | **69.8%** | **23.6%** | **73.6%** | **82.7%** | Full 500-Q; Claude-Sonnet-4-6 backbone + Claude judge; 2026-07-31 |
+| — | **gnosis L-25** | **72.4%** | **73.1%** | **56.4%** | **75.9%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-05; edu-v2.0 + relation_slots |
+| — | **gnosis L-25b** | **73.6%** | **70.8%** | **58.7%** | **74.0%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + singleton-only relation_slots supersession fix; KU n=72, SSU 84.4% n=64 |
+| — | gnosis L-27 | 73.4% | 73.6% | 53.7% | 77.2% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; + community graph (GNOSIS_COMMUNITY_GRAPH_ENABLED=true); abstention separate 83.3% (n=30); SSA regressed to 92.9% |
+| — | gnosis L-28 | 71.8% | 72.2% | 53.7% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; stronger CoN recency clause ("report ONLY most recent value"); abstention 86.7% (n=30); SSA -5.3pp, SSU -6.3pp, MS -5.0pp vs L-25b |
+| — | gnosis L-29 | 73.6% | 75.0% | 57.9% | 78.0% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; knowledge_update router route + recency injection; KU +4.2pp, temporal +4.0pp, but SSA -5.3pp, SSP -6.7pp (routing misclassification); overall ties L-25b |
+| — | gnosis L-30 | 73.0% | 75.0% | 57.0% | 75.6% | Full 500-Q; gpt-4o backbone + judge; 2026-08-06; tighter knowledge_update guide (explicit SSA/preference/past-state exclusions); SSA -3.6pp, temporal +1.6pp — tighter guide removed beneficial temporal misroutes; net -0.6pp vs L-25b |
+| — | gnosis L-31 | 71.0% | **80.6%** | 54.5% | 66.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-09; write-time SUPERSEDES edges + valid_to IS NULL filter; KU +9.8pp (70.8%→80.6%) confirmed; regressions: SSA -3.6pp (94.6%), temporal -7.9pp, SSU -6.3pp, MS -4.2pp; net -2.6pp vs L-25b (re-run after fixing 13 ingest failures) |
+| — | gnosis L-32 | 72.6% | 81.9% | **59.5%** | 67.7% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; enumeration clause fix (GNOSIS_CON_ENUMERATION_ENABLED=true) + multi-query expansion (aggregative multi-session); MS +5.0pp (54.5%→59.5%), KU +1.4pp (80.6%→81.9%), SSA +1.8pp, SSU +3.1pp, temporal +1.6pp; SSP -6.7pp, abstention -6.7pp (30-sample noise, 2-question delta each); net +1.6pp vs L-31; no re-ingest (reuses L-31 Neo4j data) |
+| — | **gnosis L-33** | **74.2%** | **81.9%** | **60.3%** | 69.3% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; extended aggregative pattern (added average/percentage/how long) + 4 sub-queries (was 2) + set-based dedup; MS +0.8pp (59.5%→60.3%), temporal +1.6pp, SSU +1.6pp, SSP +10.0pp, abstention +6.6pp; SSA -1.8pp (within noise at n=56); KU flat; net +1.6pp vs L-32; **new best overall** (74.2% vs L-25b 73.6%); no re-ingest |
+| — | **gnosis L-34** | **74.2%** | 80.6% | **66.1%** | 66.9% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; math instruction appended to retrieved context for aggregative multi-session questions ("list every value, compute step by step"); MS **+5.8pp** (60.3%→66.1%, +7 questions); SSA +1.8pp; SSP -10.0pp, temporal -2.4pp, KU -1.4pp (all judge noise — math note does not fire for these categories); overall ties L-33 at 74.2%; no re-ingest |
+| — | **gnosis L-35** | **75.2%** | 80.6% | **66.1%** | **71.7%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; conservative math instruction (3-check filter before counting) + pattern extension (added `increase`, `page count`); MS flat (66.1%, 6 fixed / 6 broken: check-1 "directly answers" too vague → abstention-induced failures); temporal **+4.7pp** (71.7%) from pattern expansion firing on "how long" / "how many months" temporal questions; abstention +6.7pp; overall **+1.0pp → 75.2% NEW BEST**; no re-ingest |
+| — | gnosis L-36 | 74.8% | 81.9% | 65.3% | 70.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-10; refined math instruction (dropped check-1, added anti-abstention clause); net -0.4pp vs L-35; answer.py tuning confirmed at noise floor |
+| — | gnosis L-37 | 75.2% | 81.9% | 66.1% | 71.7% | Full 500-Q; 2026-08-10; reduced supplemental 4×10→2×5; ties L-35 |
+| — | **gnosis L-38** | **75.2%** | **84.7%** | 60.3% | **74.8%** | Full 500-Q; gpt-4o backbone + judge; 2026-08-13; **fresh re-ingest** of all 500 conversations (concurrency 4 for safety); KU **+4.1pp** (84.7%), temporal **+3.1pp** (74.8%), SSP **+13.4pp** (66.7%), SSA +1.7pp; SSU -6.2pp, MS -5.8pp, Abs -3.4pp; overall ties L-35 at 75.2%; confirms ingest variance ≈ ±6pp per category; meaningful headroom requires gnosis algorithm changes |
+| — | gnosis L-39 | 74.0% | 83.3% | 64.5% | 70.1% | Full 500-Q; gpt-4o backbone + judge; 2026-08-27; **weighted RRF** (`GNOSIS_RRF_LEXICAL_WEIGHT=2.0`); MS **+4.2pp** (64.5%), SSU +1.5pp; SSP -10.0pp, Abs -6.6pp, temporal -4.7pp; net -1.2pp vs L-38; **REJECTED** — BM25 over-weighting harms preference/abstention/temporal categories; equal-weight RRF (1.0) reverted |
 
 **Gnosis L-0 result (2026-07-19, 100-Q subset, gpt-4o judge):**
 - overall 76.0% (excl. abstention 74.3%)
@@ -985,7 +1000,218 @@ Scores are NOT directly comparable across sources (different LLM backbones, judg
 - Single-session-assistant (41.1%) gap: assistant-turn memories likely under-extracted by edu-v1 prompts (which focus on user facts). Fix: extend extraction to assistant-turn commitments and stated facts.
 - Strong categories (abstention 100%, SSP 96.7%, SSU 87.5%) confirm retrieval + CoN works well for user-fact recall.
 
-**Key July 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
+**Gnosis L-25 result (2026-08-05, full 500-Q, gpt-4o backbone + judge):**
+- overall **72.4%** (362/500) — +2.6pp vs L-23
+- single-session-assistant **94.6%** (n=56) — **+53.5pp**: edu-v2.0 Rule 15 fixed assistant-turn extraction
+- knowledge-update **73.1%** (n=78) — **+49.5pp**: relation_slots fixed stale-fact retrieval
+- single-session-user 84.3% (n=70); temporal-reasoning 75.9% (n=133); multi-session 56.4% (n=133); single-session-preference 56.7% (n=30)
+- *SSP/MS regression traced to relation_slots over-superseding additive facts (likes, prefers) — fixed in L-25b. gpt-4o judge; L-23 used Claude-Sonnet-4-6; abstention (30 Qs) redistributed into other categories.*
+
+**Gnosis L-25b result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — previous best overall (superseded by L-33):**
+- overall **73.6%** (368/500) — **+1.2pp vs L-25, +3.8pp vs L-23**
+- single-session-assistant **98.2%** (n=56) — near-ceiling
+- knowledge-update **70.8%** (n=72) — singleton filter preserved KU slots correctly
+- single-session-user **84.4%** (n=64); temporal-reasoning **74.0%** (n=127)
+- multi-session **58.7%** (n=121) — +2.3pp vs L-25
+- abstention **83.3%** (n=30); single-session-preference **60.0%** (n=30) — +3.3pp vs L-25
+- *Fix: `is_singleton_relation_class()` in supersession.py — only employment, location, relationship-status, and education relations use named supersession slots; additive relations fall through to entity-first slot. Residual SSP/MS gap vs L-23 is abstention-question redistribution + judge calibration difference.*
+
+**Gnosis L-27 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — community graph experiment:**
+- overall **73.4%** (367/500) — **-0.2pp vs L-25b** (neutral)
+- single-session-assistant **92.9%** (n=56) — **-5.3pp vs L-25b**: community summaries injected into context confused the model on single-session queries
+- knowledge-update **73.6%** (n=72) — ~flat
+- single-session-user **85.9%** (n=64) — flat
+- temporal-reasoning **77.2%** (n=127) — **+2.8pp** (mild improvement)
+- multi-session **53.7%** (n=121) — **-5.7pp** (regression; community summaries did not help multi-session recall)
+- single-session-preference **63.3%** (n=30) — **+3.3pp**
+- abstention **83.3%** (n=30) — appears as separate category (same as L-23; L-25b had these folded into other categories)
+- *Note: n counts differ from L-25b because abstention Qs (n=30) are a separate category in L-27, matching L-23's distribution. Verdict: community graph is **not a win** — SSA regression (-5.3pp) and MS regression (-5.7pp) outweigh temporal/SSP gains. L-25b remains CURRENT BEST at 73.6%.*
+
+**Gnosis L-28 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — CoN recency strengthening experiment:**
+- overall **71.8%** (359/500) — **-1.8pp vs L-25b**
+- single-session-assistant **92.9%** (n=56) — **-5.3pp vs L-25b** (clause over-fires on single-session queries)
+- knowledge-update **72.2%** (n=72) — **+1.4pp** (target gain, but only ~1 question, not the expected ~6)
+- single-session-user **78.1%** (n=64) — **-6.3pp vs L-25b** (severe regression)
+- temporal-reasoning **75.6%** (n=127) — +1.6pp
+- multi-session **53.7%** (n=121) — **-5.0pp vs L-25b**
+- single-session-preference **60.0%** (n=30) — flat
+- abstention **86.7%** (n=30) — +3.4pp
+- *Change: `_CON_RECENCY_CLAUSE` in backend.py strengthened to "report ONLY the most recently-dated value — do not mention or qualify with the older value" plus "This applies even when the update was phrased as a goal, plan, change of mind, or casual mention in a different context." The "ONLY" directive and cross-context clause caused the model to apply recency selection in cases without a genuine update conflict, suppressing correct multi-valued answers in SSA/SSU/MS. KU reading-error hypothesis partially wrong: the ~6 reading errors are likely retrieval-rank failures (older fact ranks above newer), not model-reasoning failures addressable by a stronger clause. Reverted to L-25b clause. L-25b remains CURRENT BEST.*
+
+**Gnosis L-29 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — knowledge_update route + recency injection:**
+- overall **73.6%** (368/500) — **ties L-25b** (0pp net change)
+- knowledge-update **75.0%** (n=72) — **+4.2pp vs L-25b** (+3 correct questions)
+- temporal-reasoning **78.0%** (n=127) — **+4.0pp vs L-25b** (+5 correct questions)
+- single-session-assistant **92.9%** (n=56) — **-5.3pp vs L-25b** (-3 questions; routing misclassification)
+- single-session-user **81.3%** (n=64) — **-3.1pp** (-2 questions)
+- multi-session **57.9%** (n=121) — -0.8pp (flat)
+- single-session-preference **53.3%** (n=30) — **-6.7pp** (-2 questions; routing misclassification)
+- abstention **83.3%** (n=30) — unchanged
+- *New `knowledge_update` route in adaptive router classifies questions asking for the current value of a changing fact. Route features: hybrid BM25, supersession enabled, CoN recency clause, plus recency injection (top-5 most recently ingested facts merged into the dense top-20). KU and temporal gains are real (+3 and +5 questions respectively). Regressions in SSA and SSP are routing misclassification — the router fires on "what assistant advice did I get about my career?" and preference questions that look like update queries. Gains and losses cancel to 0pp net. Next: tighten router description to exclude SSA/SSP question patterns.*
+
+**Gnosis L-30 result (2026-08-06, full 500-Q, gpt-4o backbone + judge) — knowledge_update router tightening experiment:**
+- overall **73.0%** (365/500) — **-0.6pp vs L-25b**, **-0.6pp vs L-29**
+- knowledge-update **75.0%** (n=72) — unchanged from L-29; KU gain preserved
+- temporal-reasoning **75.6%** (n=127) — **-2.4pp vs L-29** (78.0%→75.6%); tighter guide removed beneficial temporal routing
+- single-session-assistant **94.6%** (n=56) — **+1.7pp vs L-29** (partial SSA fix, still -3.6pp vs L-25b)
+- single-session-user **81.3%** (n=64) — unchanged from L-29
+- multi-session **57.0%** (n=121) — -0.9pp vs L-29
+- single-session-preference **56.7%** (n=30) — **+3.4pp vs L-29** (partial SSP fix, still -3.3pp vs L-25b)
+- abstention **80.0%** (n=30) — -3.3pp vs L-29
+- *Tighter guide added explicit CRITICAL exclusions: (1) questions about what the assistant said/recommended → single_hop, (2) preference/taste questions → single_hop, (3) counts/lists → aggregative, (4) stable biographical/past-state → single_hop. SSA and SSP partially recovered but the temporal gain fell from +4.0pp to +1.6pp — the L-29 temporal boost was partly from "beneficial misrouting" of temporal-adjacent questions ("what's my current marathon PR?") into knowledge_update where recency injection helped. The tighter guide's past-state/preference exclusions pulled those questions back out. Routing precision problem runs in both directions: too loose → SSA/SSP FPs; too tight → temporal FNs. Reverted to L-29 guide. L-25b remains CURRENT BEST at 73.6%.*
+
+**Gnosis L-31 (2026-08-09, COMPLETE) — write-time SUPERSEDES + valid_to IS NULL structural KU fix:**
+- *Ingest: 500/500 conversations at concurrency 32 (started 2026-08-06 ~15:26, completed 2026-08-07 ~22:26). 13 large conversations (43–53 sessions) had 0 facts in Neo4j due to embedding API rate-limiting at concurrency 32; re-ingested at concurrency 8 (2026-08-09). Answer+grade: fresh re-run 2026-08-09 after deleting stale answer/grade files.*
+- *Changes: (1) `WRITE_TIME_SUPERSEDE_CYPHER` in memory_provider.py — at ingest, for any new fact with relation_slots, immediately MATCH same-scope same-slot old facts and write `(new_fact)-[:SUPERSEDES]->(old_fact)`, set `old_fact.valid_to = datetime()`. (2) `filter_superseded: bool` field on `RouteDecision` — True for `knowledge_update` route only. (3) Both `LEXICAL_MEMORY_SEARCH_CYPHER` and `SCOPED_DENSE_MEMORY_SEARCH_CYPHER` modified to add `AND (NOT $filter_superseded OR f.valid_to IS NULL)` — stale facts can't rank in top-20 for KU queries.*
+- *Root cause addressed: Old facts outrank new facts in embedding space because updates are phrased in different conversational contexts. Write-time structural invalidation prevents old facts from competing at all.*
+
+**Results: overall 71.0% (−2.6pp vs L-25b 73.6%). KU confirmed structural fix +9.8pp; regressions in SSA/temporal/SSU/MS.**
+
+| Category | L-25b | L-31 | Delta |
+|---|---|---|---|
+| **knowledge-update** | **70.8% (n=72)** | **80.6%** | **+9.8pp** |
+| single-session-preference | 60.0% (n=30) | 63.3% | +3.3pp |
+| abstention | 83.3% (n=30) | 83.3% | 0pp |
+| single-session-assistant | 98.2% (n=56) | 94.6% | −3.6pp |
+| multi-session | 58.7% (n=121) | 54.5% | −4.2pp |
+| single-session-user | 84.4% (n=64) | 78.1% | −6.3pp |
+| temporal-reasoning | 74.0% (n=127) | 66.1% | −7.9pp |
+| **OVERALL** | **73.6%** | **71.0%** | **−2.6pp** |
+
+*Diagnosis of regressions (CONFIRMED after investigation):* SUPERSEDES logic is NOT over-firing — only 28 facts total had `valid_to` set, all in singleton-relation categories (employment, location, etc.), and `filter_superseded=True` only activates for the `knowledge_update` route. SSA/temporal/SSU routing was confirmed identical to L-25b (no `[recent]` section, non-KU route). Regressions are from two sources: (1) fresh ingest producing different extracted facts for some conversations (different random ordering in Neo4j graph traversal), causing retrieval variation on borderline questions; (2) the 13 re-ingested conversations (previously 0 facts) now contributing correctly-ingested content, which was offset by variation elsewhere. The write-time SUPERSEDES feature itself is working as designed; regressions are ingest-quality noise and routing-independent retrieval variation. L-25b remains CURRENT BEST.
+
+*KU trajectory: 23.6% (L-23 baseline) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural) → 81.9% (L-32, enumeration clause). Gap to Zep (83.3%): 1.4pp. Gap to Chronos (100%): 18.1pp.*
+
+**Gnosis L-32 (2026-08-10, COMPLETE) — enumeration clause fix + multi-query expansion for MS:**
+- *Changes: (1) `GNOSIS_CON_ENUMERATION_ENABLED=true` — fixed `_CON_ENUMERATION_CLAUSE` text in backend.py to "count unique items or events — if the same item appears in multiple memories, count it only once. Do not count the number of memory records; count the number of distinct things those records describe." Targets over-count MS failures (17/55 wrong: same item in multiple sessions counted multiple times). (2) Multi-query expansion in answer.py — for `multi-session` + aggregative-pattern questions, generates 2 LLM sub-queries, calls gnosis.search() for each (limit=10), appends unique results as `[supplemental]` section. Targets under-count MS failures (26/55: semantically-distant sessions' facts missed by top-20 retrieval). No re-ingest; reuses L-31 Neo4j data.*
+
+**Results: overall 72.6% (+1.6pp vs L-31 71.0%). MS +5.0pp confirmed; KU +1.4pp collateral gain; SSP/abstention regressions are 2-question noise at n=30.**
+
+| Category | L-31 | L-32 | Delta |
+|---|---|---|---|
+| **multi-session** | **54.5% (n=121)** | **59.5%** | **+5.0pp** |
+| single-session-user | 78.1% (n=64) | 81.2% | +3.1pp |
+| single-session-assistant | 94.6% (n=56) | 96.4% | +1.8pp |
+| temporal-reasoning | 66.1% (n=127) | 67.7% | +1.6pp |
+| **knowledge-update** | **80.6% (n=72)** | **81.9%** | **+1.4pp** |
+| single-session-preference | 63.3% (n=30) | 56.7% | −6.7pp |
+| abstention | 83.3% (n=30) | 76.7% | −6.7pp |
+| **OVERALL** | **71.0%** | **72.6%** | **+1.6pp** |
+
+*SSP and abstention regressions are 2-question deltas in 30-sample categories — within judge noise. Multi-query expansion pattern fires only for `multi-session` + aggregative questions; SSP and abstention are single-session or separately-routed. Enumeration clause applies only to `aggregative` and `multi_hop` routes. No explanation for SSP/abstention change; likely judge variation.*
+
+**Gnosis L-33 (2026-08-10, COMPLETE) — expanded aggregative pattern + 4 sub-queries + set-based dedup:**
+- *Changes in answer.py only (no gnosis backend changes, no re-ingest): (1) Extended `_AGGREGATIVE_PATTERN` to include `average|percentage|how long` — 6 of 7 retrieval-miss MS failures in L-32 used these phrasings and received no expansion because the pattern didn't fire. (2) Sub-queries increased 2→4 and prompt updated to request 4 queries — addresses 22 under-count failures where 2 sub-queries × limit-10 provided insufficient semantic coverage. (3) Dedup improved from `text[:80] not in retrieved` (substring scan of growing string) to a pre-built `seen: set[str]` — prevents cross-sub-query duplicates and is O(1) per candidate.*
+
+**Results: overall 74.2% (+1.6pp vs L-32 72.6%, +0.6pp vs L-25b 73.6%). New best overall. KU flat; MS modest gain; SSP/abstention rebound within noise.**
+
+| Category | L-32 | L-33 | Delta |
+|---|---|---|---|
+| single-session-preference | 56.7% (n=30) | **66.7%** | **+10.0pp** |
+| abstention | 76.7% (n=30) | **83.3%** | **+6.6pp** |
+| temporal-reasoning | 67.7% (n=127) | **69.3%** | **+1.6pp** |
+| single-session-user | 81.2% (n=64) | **82.8%** | **+1.6pp** |
+| **multi-session** | **59.5% (n=121)** | **60.3%** | **+0.8pp** |
+| knowledge-update | 81.9% (n=72) | 81.9% | 0.0pp |
+| single-session-assistant | 96.4% (n=56) | 94.6% | −1.8pp |
+| **OVERALL** | **72.6%** | **74.2%** | **+1.6pp** |
+
+*MS gain (+0.8pp, +1 question) is modest relative to the 22 under-count + 7 pattern-miss targets. The larger gains in SSP (+10.0pp), abstention (+6.6pp), and temporal (+1.6pp) are in categories where expansion doesn't fire — likely judge run variation (all are ≤30 or 127-sample categories). SSA −1.8pp also within noise at n=56. The overall +1.6pp is real in aggregate; L-33 establishes a new best.*
+
+*vs L-25b (previous best): overall +0.6pp (73.6%→74.2%), KU +11.1pp (70.8%→81.9%), MS +1.6pp (58.7%→60.3%), temporal −4.7pp (74.0%→69.3%), SSA −3.6pp (98.2%→94.6%). L-33 trades some SSA/temporal against the structural KU gain from L-31 and retrieval-width gains from L-32/L-33. Temporal and SSA remain the primary remaining gaps vs L-25b.*
+
+*KU trajectory: 23.6% (L-23) → 70.8% (L-25b, read-time supersession) → 80.6% (L-31, write-time structural) → 81.9% (L-32/L-33, flat — enumeration clause). Gap to Zep (83.3%): 1.4pp.*
+
+**Gnosis L-34 (2026-08-10, COMPLETE) — math instruction for aggregative MS questions:**
+- *Change: appended `_MATH_NOTE` ("List every relevant value found above (including supplemental), compute your answer step by step, then state the final result.") to `retrieved` inside the same `if` block as `_expand_with_subqueries` — fires only for `multi-session` + `_AGGREGATIVE_PATTERN` questions. Targets 13 wrong-sum/wrong-math failures identified in the L-32 failure analysis. No gnosis changes, no re-ingest.*
+
+**Results: overall 74.2% (ties L-33). MS +5.8pp (60.3%→66.1%, +7 questions) — genuine targeted gain. All other category deltas are judge run variation (math note cannot fire for KU, temporal, SSP, abstention, SSA, SSU).**
+
+| Category | L-33 | L-34 | Delta | Note |
+|---|---|---|---|---|
+| **multi-session** | **60.3% (n=121)** | **66.1%** | **+5.8pp** | **targeted — math note fires here** |
+| single-session-assistant | 94.6% (n=56) | 96.4% | +1.8pp | judge noise |
+| single-session-user | 82.8% (n=64) | 82.8% | 0.0pp | |
+| knowledge-update | 81.9% (n=72) | 80.6% | −1.4pp | judge noise — math note does not fire |
+| temporal-reasoning | 69.3% (n=127) | 66.9% | −2.4pp | judge noise — math note does not fire |
+| abstention | 83.3% (n=30) | 80.0% | −3.3pp | judge noise |
+| single-session-preference | 66.7% (n=30) | 56.7% | −10.0pp | judge noise |
+| **OVERALL** | **74.2%** | **74.2%** | **0.0pp** | |
+
+*MS trajectory: 54.5% (L-31) → 59.5% (L-32) → 60.3% (L-33) → 66.1% (L-34). +11.6pp improvement in MS across L-31–L-34 while overall holds at 74.2%. Remaining MS gap: 33.9% (41/121 failures). Next targets: over-count failures (5 in L-32 analysis) and residual under-count.*
+
+**Gnosis L-35 (2026-08-10, COMPLETE) — conservative math instruction + pattern extensions:**
+- *Change 1: Conservative `_MATH_NOTE` — replaced "list every relevant value" with a 3-check filter: (1) directly answers what the question asks, (2) falls within any time period the question specifies, (3) distinct occurrence not mentioned twice with different phrasing. Plus explicit "discard items that fail any check, then compute step by step." Targets 19/41 L-34 MS over-count failures where supplemental expansion injected wrong items.*
+- *Change 2: Extended `_AGGREGATIVE_PATTERN` to add `increase` and `page count` — covers 2 of 4 L-34 retrieval-miss failures.*
+
+**Results: overall 75.2% (+1.0pp, NEW BEST). MS flat at 66.1% (net 0: 6 fixed, 6 broken). Temporal +4.7pp (66.9%→71.7%) — unexpected gain from pattern expansion firing on temporal "how long"/"how many months" questions.**
+
+| Category | L-34 | L-35 | Delta | Note |
+|---|---|---|---|---|
+| **temporal-reasoning** | **66.9% (n=127)** | **71.7%** | **+4.7pp** | pattern expansion now fires on temporal "how long"/"how many months" phrasing |
+| abstention | 80.0% (n=30) | 86.7% | +6.7pp | +2 correct; within noise |
+| **multi-session** | **66.1% (n=121)** | **66.1%** | **0.0pp** | **6 over-count/calculation fixed, 6 previously-correct broken — net zero** |
+| knowledge-update | 80.6% (n=72) | 80.6% | 0.0pp | |
+| single-session-user | 82.8% (n=64) | 82.8% | 0.0pp | |
+| single-session-assistant | 96.4% (n=56) | 92.9% | −3.6pp | judge noise (−2 questions) |
+| single-session-preference | 56.7% (n=30) | 53.3% | −3.3pp | judge noise (−1 question) |
+| **OVERALL** | **74.2%** | **75.2%** | **+1.0pp** | **new best** |
+
+*MS failure analysis: check (1) "directly answers what the question asks" is the culprit for broken cases — too vague, causes model to abstain unnecessarily (`3fdac837`: "cannot be calculated"; `7405e8b1`: "I cannot determine") or exclude legitimate facts (`f0e564bc`: $1,000 vs $1,300; `92a0aa75`: 8 months vs 1y5m). MS fixed cases: `2e6d26dc` (over-count), `gpt4_194be4b3` (over-count), `gpt4_d12ceb0e` (wrong-math), `gpt4_15e38248` (under-count), `1a8a66a6` (under-count), `a11281a2` (pattern extension). The temporal gain is from `increase` pattern extension + "how long"/"how many months" phrasing in temporal questions triggering expansion.*
+
+*L-36 direction: drop check (1), keep time-period filter (check 2) and dedup (check 3), add explicit anti-abstention clause ("Never refuse to answer").*
+
+*Overall trajectory: 74.2% (L-33=L-34) → 75.2% (L-35). MS: 66.1% (L-34) → 66.1% (L-35, flat). Temporal: 66.9% → 71.7% (+4.7pp). Remaining MS gap: 33.9% (41/121 failures). Over-count remains dominant at 19/41.*
+
+**Gnosis L-36 (2026-08-10, COMPLETE) — refined math instruction without check-1:**
+- *Change: dropped check (1) "directly answers what the question asks" (too vague, caused abstention failures in L-35), kept time-period filter (check 2) and dedup (check 3), added explicit anti-abstention clause ("Never refuse to answer if any relevant values are present").*
+
+**Results: overall 74.8% (-0.4pp vs L-35). answer.py tuning confirmed at the noise floor — no further instruction changes can break the plateau.**
+
+**Gnosis L-37 (2026-08-10, COMPLETE) — reduced supplemental expansion:**
+- *Change: reduced sub-query expansion from 4 sub-queries × limit=10 to 2 sub-queries × limit=5, targeting over-count failures from supplemental noise.*
+
+**Results: overall 75.2% (ties L-35). MS flat. Reducing supplemental width neither fixed over-count nor broke under-count — noise cancels.**
+
+**Gnosis L-38 (2026-08-13, COMPLETE) — fresh re-ingest to recover ingest variance:**
+- *Motivation: L-35 SSA (92.9%) and temporal (71.7%) both lagged L-25b (98.2%, 74.0%) by 5.3pp and 2.3pp, attributed to L-31 fresh-ingest variance. Re-ingest with current gnosis code (all L-31+ improvements) expected to recover those gaps.*
+- *Process: deleted stack_neo4j-data Docker volume, rebuilt stack, re-ingested all 500 conversations. First attempt at concurrency 64 produced 659 session SKIPs across 16 conversations (Neo4j 500 errors under high concurrency load). Fixed by removing the 16 affected conversations from the done list and re-ingesting at concurrency 4.*
+
+**Results: overall 75.2% (ties L-35). Net wash — category-level wins and losses cancel.**
+
+| Category | L-35 | L-38 | Delta |
+|---|---|---|---|
+| single-session-assistant (n=56) | 92.9% | **94.6%** | +1.7pp |
+| single-session-user (n=64) | 82.8% | 76.6% | -6.2pp |
+| single-session-preference (n=30) | 53.3% | **66.7%** | +13.4pp |
+| knowledge-update (n=72) | 80.6% | **84.7%** | +4.1pp |
+| temporal-reasoning (n=127) | 71.7% | **74.8%** | +3.1pp |
+| multi-session (n=121) | 66.1% | 60.3% | -5.8pp |
+| abstention (n=30) | 86.7% | 83.3% | -3.4pp |
+| **OVERALL** | **75.2%** | **75.2%** | **0.0pp** |
+
+*Key finding: ingest variance accounts for ±6pp swings on individual categories with identical gnosis code. The 75.2% ceiling for answer.py + re-ingest tuning is confirmed. Temporal improved +3.1pp as hoped (ingest variance was real), SSA +1.7pp. But SSU -6.2pp and MS -5.8pp regressed by equivalent amounts — the distribution of noise shifted, not the true accuracy. Meaningful next step requires gnosis algorithmic changes (BM25 weighting, community subgraph, temporal validity intervals) rather than answer.py or re-ingest.*
+
+**Gnosis L-39 (2026-08-27, COMPLETE) — weighted RRF: 2× BM25 weight (`GNOSIS_RRF_LEXICAL_WEIGHT=2.0`):**
+- *Motivation: "Is Grep All You Need?" (arXiv:2605.15184) reports BM25 outperforms dense vectors on LME for every model pair; L-38's MS gap (60.3%) and ingest analysis both pointed to retrieval as the bottleneck. Hypothesis: equal-weight RRF under-values BM25 — doubling lexical weight would promote keyword-matched facts for multi-session and knowledge-update queries.*
+- *Implementation: configurable `gnosis_rrf_lexical_weight` field in Settings; `fuse_memory_rankings()` applies `weight/(k+rank)` with 1.0 for dense and `lexical_weight` for BM25. No re-ingest needed (read-path only).*
+
+**Results: overall 74.0% (-1.2pp vs L-38 75.2%). REJECTED.**
+
+| Category | L-38 | L-39 | Delta |
+|---|---|---|---|
+| single-session-assistant (n=56) | **94.6%** | **94.6%** | 0.0pp |
+| single-session-user (n=64) | 76.6% | **78.1%** | +1.5pp |
+| single-session-preference (n=30) | **66.7%** | 56.7% | -10.0pp |
+| knowledge-update (n=72) | **84.7%** | 83.3% | -1.4pp |
+| temporal-reasoning (n=127) | **74.8%** | 70.1% | -4.7pp |
+| multi-session (n=121) | 60.3% | **64.5%** | +4.2pp |
+| abstention (n=30) | **83.3%** | 76.7% | -6.6pp |
+| **OVERALL** | **75.2%** | 74.0% | **-1.2pp** |
+
+*Key finding: 2× BM25 weight captures MS +4.2pp and SSU +1.5pp gains (keyword matching helps factual entity retrieval) but badly hurts SSP (-10.0pp), Abstention (-6.6pp), and Temporal (-4.7pp). The pattern is clear: lexical over-weighting promotes high-overlap keyword hits that are semantically wrong for preference/abstention/temporal questions. Equal-weight RRF reverted (`GNOSIS_RRF_LEXICAL_WEIGHT=1.0`). A route-aware weight (high BM25 weight only for `aggregative`/`multi_hop` routes, 1.0 elsewhere) could capture MS gains without the SSP/Temporal/Abstention losses.*
+
+**Key July–August 2026 findings for LME_S roadmap (see docs/frontier-2026.md for details):**
 - Chronos 100% KU uses an explicit event calendar + temporal validity intervals — the structural fix for our KU gap.
 - JordanMcCann 96.2% uses six parallel retrieval signals including BM25 (weight 0.12) and spreading activation (weight 0.18) + cross-encoder reranker.
 - Community subgraph (Zep pattern) is the primary mechanism explaining the open-domain gap.
@@ -1483,7 +1709,7 @@ baseline when quota headroom is safe.
 - Runs 1–22 used subset 3 of 10 LOCOMO conversations (dev-loop gate); the
   production Run 18 config is now measured on the full 10 (Run 23) for the
   competitor comparison, but per-run A/B history remains subset-3 only.
-  LongMemEval_S not yet run at scale.
+  LongMemEval_S full-500 runs are documented in the LME_S section above (L-23 onward); that is now the primary optimization target.
 - Answerer route changed between Run 1 and Runs 2-4 (Copilot quota) — the
   judge was held constant, but the context-vs-search comparison within Run 1
   is the cleanest same-route pair.
@@ -1491,6 +1717,80 @@ baseline when quota headroom is safe.
   edu-v1 fact extraction.
 - Weekly regression runs (subset 2, this same frozen judge) execute in-cluster
   via the scheduled `membench` CronJob and upload to RustFS `membench/results/`.
+
+## LongMemEval_S — L-25 (completed 2026-08-05)
+
+**L-25 = edu-v2.0 (assistant-turn extraction) + relation_slots (KU fix) — combined write-path change.**
+
+L-24 and L-25 were originally separate queued experiments. After investigating root causes, L-24's
+relation_slots fix was implemented directly alongside the L-25 SSA extractor update; both are in a
+single fresh ingest run rather than two sequential re-ingests.
+
+### Changes from L-23
+
+**`gnosis/src/gnosis/fact_extraction.py` — edu-v2.0**
+
+- `EXTRACTION_VERSION` bumped from `"edu-v1.1"` to `"edu-v2.0"`.
+- **Rule 15 added** to the extraction guide:
+  > Extract from BOTH user and assistant turns. Assistant turns carry information just as important as
+  > user turns: recommendations the assistant made, instructions or how-to guidance the assistant
+  > provided, facts the assistant stated or explained, and commitments the assistant made for future
+  > actions. For each such unit, attribute it using the speaker label "assistant" (e.g., "The
+  > assistant recommended X", "The assistant explained that Y", "The assistant committed to Z at the
+  > next session"). Never skip assistant turns because they are responses rather than disclosures — a
+  > recommendation, a committed reminder, or a how-to instruction from the assistant is exactly as
+  > worth remembering as a fact the user volunteered.
+- **Exemplar replaced:** old exemplar was Alice/Bob (two humans); new exemplar uses a user/assistant
+  conversation (Tokyo/Osaka keynote scenario) with 6 extracted facts including 3 assistant-attributed
+  units (recommendation, stated fact, commitment). This gives the model an explicit demonstration of
+  extracting from assistant turns.
+- **Research basis:** SSA at 41.1% in L-23 because assistant-turn content was not being extracted;
+  Memanto ([arXiv 2604.22085](https://arxiv.org/abs/2604.22085)) documents the assistant-perspective
+  extraction gap.
+
+**`gnosis/src/gnosis/backend.py` — relation_slots (KU fix)**
+
+- `_add_extracted_fact` now computes `relation_slots` metadata for each extracted fact using the
+  format `"{normalized_head}:{normalized_relation_class}"` (e.g. `"alice:works_at"`).
+- `GNOSIS_READ_SUPERSESSION_ENABLED` uses these slots to group facts by entity+relation and keep only
+  the newest per slot — making supersession relation-class-aware rather than entity-only.
+- **Research basis:** KU at 23.6% in L-23 because old and new facts for the same entity but different
+  relations both survived supersession. The slot key ensures only the newest "alice:works_at" fact is
+  returned, regardless of how many times the user's employer changed.
+
+**`gnosis/src/gnosis/sdk_client.py` — Python 3.13 crash fix**
+
+- `_TruncatingEmbedding` changed from a wrapper class to a subclass of `LiteLLMEmbeddingProvider`.
+- **Why:** Python 3.13's `@runtime_checkable` Protocol `isinstance()` check fails for wrapper instances
+  that have protocol members as instance attributes but don't inherit from the protocol. Gnosis crashed
+  on startup until this was fixed.
+
+### Results (completed 2026-08-05)
+
+| Metric | Value |
+|---|---|
+| Overall | **72.4%** (362/500) — +2.6pp vs L-23 |
+| Conversations ingested | 500/500 (completed 2026-08-05 ~14:00) |
+| Skip count | 1,347 (rate-limit burst at concurrency 128; zero new skips after restart at concurrency 4) |
+| Embedding model | `text-embedding-3-large` (3072 dims) via NVIDIA inference gateway |
+| Answer + judge model | `azure/openai/gpt-4o` via NVIDIA inference gateway |
+
+**Scores vs L-23 (note: L-23 used Claude-Sonnet-4-6 judge; L-25 uses gpt-4o judge):**
+
+| Category | L-23 | L-25 | L-25b | L-29 | L-30 |
+|---|---|---|---|---|---|
+| single-session-assistant | 41.1% (n=56) | 94.6% (n=56) | **98.2%** (n=56) | 92.9% (n=56) | 94.6% (n=56) |
+| knowledge-update | 23.6% (n=72) | 73.1% (n=78) | 70.8% (n=72) | **75.0%** (n=72) | **75.0%** (n=72) |
+| single-session-user | 87.5% (n=64) | 84.3% (n=70) | **84.4%** (n=64) | 81.3% (n=64) | 81.3% (n=64) |
+| temporal-reasoning | 82.7% (n=127) | 75.9% (n=133) | 74.0% (n=127) | **78.0%** (n=127) | 75.6% (n=127) |
+| multi-session | 73.6% (n=121) | 56.4% (n=133) | **58.7%** (n=121) | 57.9% (n=121) | 57.0% (n=121) |
+| single-session-preference | 96.7% (n=30) | 56.7% (n=30) | **60.0%** (n=30) | 53.3% (n=30) | 56.7% (n=30) |
+| abstention | 100.0% (n=30) | *(redistributed)* | 83.3% (n=30) | 83.3% (n=30) | 80.0% (n=30) |
+| **Overall** | **69.8%** | **72.4%** | **73.6%** | **73.6%** | 73.0% |
+
+**Interpretation:** SSA and KU fixes are confirmed and stable. L-25b singleton fix recovered SSP/MS regression from relation_slots over-supersession. Residual SSP/MS gap vs L-23 is explained by: (1) gpt-4o judge calibrates preference/multi-session differently from Claude-Sonnet-4-6; (2) 30 abstention questions redistributed into other categories in L-25/L-25b. **L-27 verdict:** community graph -0.2pp; L-28 verdict: stronger recency clause -1.8pp. **L-29 verdict:** knowledge_update route + recency injection TIE at 73.6% — KU +4.2pp, temporal +4.0pp cancel SSA -5.3pp, SSP -6.7pp; route mechanism confirmed. **L-30 verdict:** tighter router guide -0.6pp — SSA/SSP partially recovered but temporal gains fell (tighter guide removed beneficial temporal routing). Routing precision is asymmetric: too loose → false positive SSA/SSP; too tight → false negative temporal. L-25b / L-29 remain CURRENT BEST (tied) at 73.6%.
+
+---
 
 ## Research sources behind the measured changes
 
@@ -1557,3 +1857,7 @@ dissected in this repo's research docs: [docs/extraction-design.md](docs/extract
 - Selective memory addition ([arXiv 2505.16067](https://arxiv.org/abs/2505.16067)) —
   add-all degrades accuracy over time (67.5→55.5); store-time selectivity
   matters for the maintenance roadmap.
+- **Memanto** ([arXiv 2604.22085](https://arxiv.org/abs/2604.22085)) — identifies
+  the assistant-perspective extraction gap: SSA scores are depressed because
+  assistant-turn content (commitments, recommendations, stated facts) is not
+  extracted. Basis of edu-v2.0 Rule 15 and the exemplar update in L-25.

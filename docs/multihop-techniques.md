@@ -88,8 +88,8 @@ the cautionary tale).
 
 ---
 
-### T2 — Chain-of-Note / structured read-then-reason over retrieved facts
-**Cheapest, the *only* answer-side technique with conversational-memory evidence, and abstention-safe. Ship first or alongside T1.**
+### T2 — Chain-of-Note / structured read-then-reason over retrieved facts ✅ IMPLEMENTED
+**Cheapest, the *only* answer-side technique with conversational-memory evidence, and abstention-safe. Shipped in Run 15 (`GNOSIS_CHAIN_OF_NOTE_ENABLED`). Route-aware (off on temporal route). Adversarial peak 83.0 J.**
 
 - **Mechanism.** Before answering, the reader writes a per-item **note** (is this fact relevant? what does it
   say? does it contradict others?) over each retrieved fact/turn, *then* synthesizes — filtering distractors
@@ -115,8 +115,8 @@ the cautionary tale).
 
 ---
 
-### T3 — Adaptive / routed retrieval: classify query type, apply the per-category-best strategy
-**The direct fix for the interference problem they asked about — keep each category's peak instead of trading them off.**
+### T3 — Adaptive / routed retrieval: classify query type, apply the per-category-best strategy ✅ IMPLEMENTED
+**Shipped in Run 11 (`GNOSIS_ADAPTIVE_ROUTING_ENABLED`, +2.9 J). Now at 6 routes as of L-31: single_hop, temporal, multi_hop, aggregative, knowledge_update, unanswerable_risk. The route table is the composition mechanism — how per-category peaks (temporal, adversarial, SSA) are held simultaneously.**
 
 - **Mechanism.** A cheap classifier tags each query (single-hop / multi-hop / temporal / abstention-prone /
   aggregative-open-domain) and **routes to the strategy that won that category in ablation**, instead of one
@@ -147,8 +147,8 @@ the cautionary tale).
 
 ---
 
-### T4 — Hierarchical / community summary nodes for open-domain aggregation (RAPTOR + GraphRAG-community)
-**The open-domain lever — but the weakest-evidenced entry here; build last, instrument hard.**
+### T4 — Hierarchical / community summary nodes for open-domain aggregation (RAPTOR + GraphRAG-community) ❌ TRIED (L-27), REJECTED
+**Tried 2026-08-06 (`GNOSIS_COMMUNITY_GRAPH_ENABLED=true`). Result: -0.2pp overall, SSA -5.3pp, MS -5.0pp; temporal +2.8pp, SSP +3.3pp. The SSA/MS regressions (community summaries injected into context confused the model on single-session queries) outweighed the open-domain gains. The open-domain lever — but the weakest-evidenced entry here; community graph remains available as a flag but is off by default.**
 
 - **Mechanism.** Build summary nodes *above* raw turns so aggregative "what did they discuss about X across
   sessions" queries read a summary, not scattered turns. Two verified constructions: **RAPTOR**
@@ -196,13 +196,16 @@ the cautionary tale).
 
 ## 2. Summary table
 
-| # | Technique | Targets | Evidence grade | Multi-hop ablation on *conversation*? | Cost | Abstention risk |
-|---|---|---|---|---|---|---|
-| **T1** | Query decomposition + iterative/interleaved retrieval over the entity graph (self-ask/IRCoT) | **multi-hop** | peer-reviewed (Wikipedia only) | **No** — transfer bet | medium | **yes** — gate it |
-| **T2** | Chain-of-Note structured read-then-reason | multi-hop, open-domain, abstention-safe | **peer-reviewed + LongMemEval (memory-native)** | partial (LongMemEval overall +10pp) | **low** | none / positive |
-| **T3** | Adaptive/routed retrieval by query type | **interference fix** (all categories) | peer-reviewed core + preprint memory convergence | classifier only; routed strategies carry the gain | medium | low (protects each peak) |
-| **T4** | Hierarchical/community summary nodes (RAPTOR / GraphRAG-community / Graphiti) | open-domain | peer-reviewed off-domain; vendor/qualitative on-domain | **No verified accuracy win on conversation** | med-high | low |
-| **T5** | Self-RAG reflection-token adaptive retrieval (**watch**) | multi-hop, adaptive | peer-reviewed, off-domain, training-required | No | high (training) | low |
+Implementation status as of 2026-08-06 added. See gnosis-membench RESULTS.md for
+the full experiment ledger.
+
+| # | Technique | Targets | Evidence grade | Multi-hop ablation on *conversation*? | Cost | Status | Abstention risk |
+|---|---|---|---|---|---|---|---|
+| **T1** | Query decomposition + iterative/interleaved retrieval over the entity graph (self-ask/IRCoT) | **multi-hop** | peer-reviewed (Wikipedia only) | **No** — transfer bet | medium | **not yet implemented** | **yes** — gate it |
+| **T2** | Chain-of-Note structured read-then-reason | multi-hop, open-domain, abstention-safe | **peer-reviewed + LongMemEval (memory-native)** | partial (LongMemEval overall +10pp) | **low** | ✅ **implemented** — `GNOSIS_CHAIN_OF_NOTE_ENABLED`; route-aware hardened CoN since Run 15; adversarial 83.0 (peak) | none / positive |
+| **T3** | Adaptive/routed retrieval by query type | **interference fix** (all categories) | peer-reviewed core + preprint memory convergence | classifier only; routed strategies carry the gain | medium | ✅ **implemented** — `GNOSIS_ADAPTIVE_ROUTING_ENABLED`; 6-route table (single_hop, temporal, multi_hop, aggregative, knowledge_update, unanswerable_risk); +2.9 J vs static | low (protects each peak) |
+| **T4** | Hierarchical/community summary nodes (RAPTOR / GraphRAG-community / Graphiti) | open-domain | peer-reviewed off-domain; vendor/qualitative on-domain | **No verified accuracy win on conversation** | med-high | ❌ **tried (L-27), rejected** — `GNOSIS_COMMUNITY_GRAPH_ENABLED`; result: -0.2pp overall, SSA -5.3pp, MS -5.0pp; temporal +2.8pp, SSP +3.3pp did not outweigh regressions | low |
+| **T5** | Self-RAG reflection-token adaptive retrieval (**watch**) | multi-hop, adaptive | peer-reviewed, off-domain, training-required | No | high (training) | **not implemented** — watch only; T2/T3 get most of the benefit at zero training cost | low |
 
 ---
 

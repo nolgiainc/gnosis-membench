@@ -28,10 +28,14 @@ from __future__ import annotations
 import json
 import re
 import string
+import time
 from collections import Counter
 from collections.abc import Callable
 from statistics import mean
 from typing import Any
+
+_GRADE_MAX_OUTER_RETRIES = 5
+_GRADE_RETRY_INITIAL = 5.0
 
 from nltk.stem import PorterStemmer
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
@@ -82,14 +86,26 @@ def grade_longmemeval_record(
         record["hypothesis"],
         abstention=record.get("abstention", False),
     )
-    eval_response = complete(
-        judge_model,
-        [{"role": "user", "content": prompt}],
-        temperature=0.0,
-        max_tokens=10,
-    ).strip()
-    label = "yes" in eval_response.lower()
-    return {**record, "judge_response": eval_response, "correct": label}
+    last_error: Exception | None = None
+    for attempt in range(_GRADE_MAX_OUTER_RETRIES + 1):
+        try:
+            eval_response = complete(
+                judge_model,
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=10,
+            ).strip()
+        except RuntimeError as exc:
+            last_error = exc
+            if attempt < _GRADE_MAX_OUTER_RETRIES:
+                time.sleep(_GRADE_RETRY_INITIAL * (2**attempt))
+                continue
+            raise RuntimeError(
+                f"grade failed after {_GRADE_MAX_OUTER_RETRIES} outer retries: {last_error}"
+            ) from last_error
+        label = "yes" in eval_response.lower()
+        return {**record, "judge_response": eval_response, "correct": label}
+    raise AssertionError("unreachable")
 
 
 def grade_longmemeval(
